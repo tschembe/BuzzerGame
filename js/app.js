@@ -612,7 +612,6 @@
       box.append(row);
     });
     $("e-error").classList.add("hidden");
-    $("e-copy-status").classList.add("hidden");
     $("e-reset").classList.toggle("hidden", !setEdits()[`${c}-${r}`]);
     updateSearchLink();
     showEditForm(true);
@@ -631,33 +630,6 @@
   }
   $("m-edit").addEventListener("input", updateSearchLink);
   $("m-edit").addEventListener("change", updateSearchLink);
-
-  $("e-copy").onclick = async () => {
-    const text = verifyText();
-    let ok = false;
-    try {
-      await navigator.clipboard.writeText(text);
-      ok = true;
-    } catch {
-      // روش قدیمی برای مرورگرهایی که اجازه‌ی clipboard نمی‌دهند
-      const tmp = document.createElement("textarea");
-      tmp.value = text;
-      tmp.setAttribute("readonly", "");
-      tmp.style.position = "fixed";
-      tmp.style.opacity = "0";
-      document.body.append(tmp);
-      tmp.select();
-      try {
-        ok = document.execCommand("copy");
-      } catch {}
-      tmp.remove();
-    }
-    const status = $("e-copy-status");
-    status.textContent = ok
-      ? "✓ کپی شد. حالا می‌توانید در گوگل پیست کنید."
-      : "کپی نشد. متن سوال را خودتان انتخاب و کپی کنید، یا «جست‌وجو در گوگل» را بزنید.";
-    status.className = `small ${ok ? "ok" : "error"}`;
-  };
 
   $("m-edit").addEventListener("submit", (e) => {
     e.preventDefault();
