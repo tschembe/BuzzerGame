@@ -9,7 +9,7 @@
 
   // state.used: کلید "دسته-ردیف" ← اندیس تیم برنده یا -1 برای هیچ‌کدام
   let state = load() || freshState();
-  let current = null; // { c, r, attempts }
+  let current = null; // { c, r, attempts, editing }
   let timer = { left: 0, id: null, running: false };
 
   function freshState() {
@@ -124,13 +124,14 @@
     btn.className = "cell";
     const key = `${c}-${r}`;
     if (key in state.used) {
-      btn.disabled = true;
+      btn.classList.add("used");
+      btn.title = "ویرایش امتیاز این سوال";
       const w = state.used[key];
       btn.textContent = w >= 0 && state.teams[w] ? state.teams[w].name : "—";
     } else {
       btn.textContent = fa(POINTS[r]);
-      btn.onclick = () => openQuestion(c, r);
     }
+    btn.onclick = () => openQuestion(c, r);
     return btn;
   }
 
@@ -186,7 +187,10 @@
 
   // ---------- پنجره‌ی سوال ----------
   function openQuestion(c, r) {
-    current = { c, r, attempts: 0 };
+    // سوالی که قبلاً جواب داده شده در حالت ویرایش باز می‌شود
+    const key = `${c}-${r}`;
+    const editing = key in state.used;
+    current = { c, r, attempts: 0, editing };
     const cat = CATEGORIES[c];
     const item = cat.questions[r];
     $("m-cat").textContent = `${cat.icon} ${cat.name}`;
@@ -224,21 +228,29 @@
 
     const teams = $("m-teams");
     teams.innerHTML = "";
+    const owner = editing ? state.used[key] : null;
     state.teams.forEach((t, i) => {
       const b = document.createElement("button");
-      b.className = "btn";
+      b.className = "btn" + (owner === i ? " current" : "");
       b.textContent = t.name;
       b.onclick = () => award(i);
       teams.append(b);
     });
     const none = document.createElement("button");
-    none.className = "btn none";
+    none.className = "btn none" + (owner === -1 ? " current" : "");
     none.textContent = "هیچ تیمی 🙅";
     none.onclick = () => award(-1);
     teams.append(none);
 
     $("modal").classList.remove("hidden");
-    if (state.settings.timer) startTimer();
+    if (editing) {
+      reveal(null);
+      const name = owner >= 0 && state.teams[owner] ? `«${state.teams[owner].name}»` : "هیچ تیمی";
+      $("m-who").textContent = `✏️ امتیاز این سوال الان مال ${name} است. به کدام تیم برسد؟`;
+    } else {
+      $("m-who").textContent = "کدام تیم درست جواب داد؟";
+      if (state.settings.timer) startTimer();
+    }
   }
 
   function closeModal() {
@@ -279,12 +291,16 @@
   $("m-reveal").onclick = () => reveal(null);
 
   function award(teamIndex) {
-    const { c, r } = current;
-    state.used[`${c}-${r}`] = teamIndex;
+    const { c, r, editing } = current;
+    const key = `${c}-${r}`;
+    // در ویرایش، اول امتیاز را از تیم قبلی پس می‌گیریم
+    const prev = state.used[key];
+    if (editing && prev >= 0 && state.teams[prev]) state.teams[prev].score -= POINTS[r];
+    state.used[key] = teamIndex;
     if (teamIndex >= 0) state.teams[teamIndex].score += POINTS[r];
     save();
     closeModal();
-    if (Object.keys(state.used).length >= totalQuestions) showScreen("end");
+    if (!editing && Object.keys(state.used).length >= totalQuestions) showScreen("end");
     else renderBoard();
   }
 
@@ -366,6 +382,8 @@
       ol.append(li);
     });
   }
+
+  $("back-btn").onclick = () => showScreen("board");
 
   $("restart-btn").onclick = () => {
     // تیم‌ها نگه داشته می‌شوند تا بشود سریع دوباره بازی کرد

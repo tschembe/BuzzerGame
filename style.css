@@ -177,11 +177,12 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
   text-shadow: 0 2px 0 rgba(0, 0, 0, .35);
   transition: background .15s, transform .1s;
 }
-.cell:hover:not(:disabled) { background: var(--cell-hover); transform: translateY(-2px); }
-.cell:disabled {
+.cell:hover:not(.used) { background: var(--cell-hover); transform: translateY(-2px); }
+.cell.used:hover { border-color: var(--muted); }
+.cell.used {
+  border: 1px dashed transparent;
   background: var(--used);
   color: var(--muted);
-  cursor: default;
   font-size: .8rem;
   font-weight: 600;
   text-shadow: none;
@@ -307,6 +308,7 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
 .who { text-align: center; font-weight: 600; margin: 18px 0 10px; }
 .team-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
 .team-buttons .btn { padding: 12px; overflow-wrap: anywhere; }
+.team-buttons .current { box-shadow: 0 0 0 2px var(--gold) inset; }
 .team-buttons .none { background: transparent; border: 1px dashed var(--border); color: var(--muted); }
 
 /* پایان بازی */
@@ -323,6 +325,7 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
   padding: 10px 14px;
 }
 .ranking li.first { border-color: var(--gold); color: var(--gold); font-weight: 800; }
+#back-btn { margin-top: 8px; font-size: 1rem; }
 .ranking .pts { font-weight: 800; white-space: nowrap; }
 
 /* جدول چرخانده‌شده برای گوشی: ستون اول نام دسته، بعد پنج امتیاز */
@@ -334,7 +337,7 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
 .board.rotated .cat-head { min-height: 54px; padding: 6px 4px; font-size: .78rem; gap: 2px; }
 .board.rotated .cat-head .ico { font-size: 1.1rem; }
 .board.rotated .cell { min-height: 54px; font-size: 1rem; padding: 0 2px; }
-.board.rotated .cell:disabled { font-size: .65rem; overflow-wrap: anywhere; }
+.board.rotated .cell.used { font-size: .65rem; overflow-wrap: anywhere; }
 
 @media (max-width: 600px) {
   .card { padding: 20px; }
