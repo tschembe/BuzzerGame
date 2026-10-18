@@ -9,17 +9,23 @@
 
   // state.used: کلید "دسته-ردیف" ← اندیس تیم برنده یا -1 برای هیچ‌کدام
   let state = load() || freshState();
-  let current = null; // { c, r }
+  let current = null; // { c, r, attempts }
   let timer = { left: 0, id: null, running: false };
 
   function freshState() {
-    return { phase: "setup", teams: [], used: {} };
+    return { phase: "setup", teams: [], used: {}, settings: defaultSettings() };
+  }
+
+  function defaultSettings() {
+    return { timer: true, secondChance: false };
   }
 
   function load() {
     try {
       const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return s && Array.isArray(s.teams) && s.used ? s : null;
+      if (!s || !Array.isArray(s.teams) || !s.used) return null;
+      s.settings = { ...defaultSettings(), ...s.settings };
+      return s;
     } catch {
       return null;
     }
@@ -62,6 +68,8 @@
       li.append(name, del);
       list.append(li);
     });
+    $("opt-timer").checked = state.settings.timer;
+    $("opt-second").checked = state.settings.secondChance;
     const enough = state.teams.length >= 2;
     $("start-btn").disabled = !enough;
     $("setup-hint").classList.toggle("hidden", enough);
@@ -81,6 +89,15 @@
     save();
     renderSetup();
   });
+
+  $("opt-timer").onchange = (e) => {
+    state.settings.timer = e.target.checked;
+    save();
+  };
+  $("opt-second").onchange = (e) => {
+    state.settings.secondChance = e.target.checked;
+    save();
+  };
 
   $("start-btn").onclick = () => {
     state.used = {};
@@ -169,7 +186,7 @@
 
   // ---------- پنجره‌ی سوال ----------
   function openQuestion(c, r) {
-    current = { c, r };
+    current = { c, r, attempts: 0 };
     const cat = CATEGORIES[c];
     const item = cat.questions[r];
     $("m-cat").textContent = `${cat.icon} ${cat.name}`;
@@ -197,12 +214,13 @@
       const text = document.createElement("span");
       text.textContent = item.options[oi];
       b.append(letter, text);
-      b.onclick = () => reveal(b);
+      b.onclick = () => pick(b);
       opts.append(b);
     });
     $("m-answer-box").classList.add("hidden");
     $("m-reveal").classList.remove("hidden");
-    $("m-timer-row").classList.remove("hidden");
+    $("m-timer-row").classList.toggle("hidden", !state.settings.timer);
+    $("m-retry").classList.add("hidden");
 
     const teams = $("m-teams");
     teams.innerHTML = "";
@@ -220,7 +238,7 @@
     teams.append(none);
 
     $("modal").classList.remove("hidden");
-    startTimer();
+    if (state.settings.timer) startTimer();
   }
 
   function closeModal() {
@@ -231,6 +249,19 @@
 
   $("m-close").onclick = closeModal;
 
+  // با فرصت دوم، اولین جواب غلط فقط همان گزینه را رد می‌کند و نوبت به تیم بعدی می‌رسد
+  function pick(b) {
+    if (!b.dataset.correct && state.settings.secondChance && current.attempts === 0) {
+      current.attempts++;
+      b.disabled = true;
+      b.classList.add("wrong");
+      $("m-retry").classList.remove("hidden");
+      if (state.settings.timer) startTimer();
+      return;
+    }
+    reveal(b);
+  }
+
   // picked: گزینه‌ای که انتخاب شده (یا null برای «نمایش جواب»)
   function reveal(picked) {
     stopTimer();
@@ -240,6 +271,7 @@
       else if (b === picked) b.classList.add("wrong");
     });
     $("m-reveal").classList.add("hidden");
+    $("m-retry").classList.add("hidden");
     $("m-timer-row").classList.add("hidden");
     $("m-answer-box").classList.remove("hidden");
   }

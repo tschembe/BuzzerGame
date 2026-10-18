@@ -20,6 +20,17 @@
         <button type="submit" class="btn">➕ اضافه کن</button>
       </form>
       <ul id="team-list" class="team-list"></ul>
+      <fieldset class="settings">
+        <legend>تنظیمات بازی</legend>
+        <label class="check">
+          <input id="opt-timer" type="checkbox">
+          <span>بازی با تایمر (۳۰ ثانیه برای هر سوال)</span>
+        </label>
+        <label class="check">
+          <input id="opt-second" type="checkbox">
+          <span>اگر تیم اول غلط جواب داد، تیم دوم بتواند جواب بدهد</span>
+        </label>
+      </fieldset>
       <p id="dup-hint" class="error small hidden">این نام قبلاً اضافه شده است.</p>
       <p id="setup-hint" class="muted small">حداقل دو تیم لازم است.</p>
       <button id="start-btn" class="btn btn-primary btn-big" disabled>شروع بازی ▶</button>
@@ -66,6 +77,8 @@
       </div>
       <p id="m-question" class="question"></p>
       <div id="m-options" class="options"></div>
+
+      <p id="m-retry" class="retry hidden">❌ جواب غلط بود! حالا تیم بعدی می‌تواند جواب بدهد.</p>
 
       <div id="m-timer-row" class="timer-row">
         <div class="timer-bar"><div id="m-timer-fill"></div></div>
