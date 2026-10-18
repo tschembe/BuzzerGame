@@ -4,6 +4,7 @@
 
   const $ = (id) => document.getElementById(id);
   const fa = (n) => Number(n).toLocaleString("fa-IR");
+  const LETTERS = ["الف", "ب", "ج", "د"];
   const totalQuestions = CATEGORIES.reduce((s, c) => s + c.questions.length, 0);
 
   // state.used: کلید "دسته-ردیف" ← اندیس تیم برنده یا -1 برای هیچ‌کدام
@@ -174,7 +175,31 @@
     $("m-cat").textContent = `${cat.icon} ${cat.name}`;
     $("m-points").textContent = `${fa(POINTS[r])} امتیاز`;
     $("m-question").textContent = item.q;
-    $("m-answer").textContent = item.a;
+    $("m-answer").textContent = item.options[0];
+    $("m-note").textContent = item.note || "";
+    $("m-note").classList.toggle("hidden", !item.note);
+
+    // گزینه‌ی اول جواب درست است؛ ترتیب را به‌هم می‌ریزیم
+    const order = item.options.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    const opts = $("m-options");
+    opts.innerHTML = "";
+    order.forEach((oi, pos) => {
+      const b = document.createElement("button");
+      b.className = "option";
+      b.dataset.correct = oi === 0 ? "1" : "";
+      const letter = document.createElement("span");
+      letter.className = "letter";
+      letter.textContent = LETTERS[pos];
+      const text = document.createElement("span");
+      text.textContent = item.options[oi];
+      b.append(letter, text);
+      b.onclick = () => reveal(b);
+      opts.append(b);
+    });
     $("m-answer-box").classList.add("hidden");
     $("m-reveal").classList.remove("hidden");
     $("m-timer-row").classList.remove("hidden");
@@ -206,12 +231,20 @@
 
   $("m-close").onclick = closeModal;
 
-  $("m-reveal").onclick = () => {
+  // picked: گزینه‌ای که انتخاب شده (یا null برای «نمایش جواب»)
+  function reveal(picked) {
     stopTimer();
+    $("m-options").querySelectorAll(".option").forEach((b) => {
+      b.disabled = true;
+      if (b.dataset.correct) b.classList.add("correct");
+      else if (b === picked) b.classList.add("wrong");
+    });
     $("m-reveal").classList.add("hidden");
     $("m-timer-row").classList.add("hidden");
     $("m-answer-box").classList.remove("hidden");
-  };
+  }
+
+  $("m-reveal").onclick = () => reveal(null);
 
   function award(teamIndex) {
     const { c, r } = current;

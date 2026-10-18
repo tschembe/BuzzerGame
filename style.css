@@ -223,15 +223,57 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
   font-weight: 800;
   line-height: 1.7;
   text-align: center;
-  margin: 28px 0;
+  margin: 20px 0;
 }
+.options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.option {
+  font: inherit;
+  font-weight: 600;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: start;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.option:hover:not(:disabled) { border-color: var(--gold); background: var(--bg2); }
+.option:disabled { cursor: default; opacity: .55; }
+.option .letter {
+  flex: none;
+  width: 2.1em;
+  height: 2.1em;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bg2);
+  color: var(--gold);
+  font-size: .85rem;
+  font-weight: 800;
+}
+.option.correct { opacity: 1; border-color: var(--ok); background: rgba(39, 194, 129, .18); }
+.option.correct .letter { background: var(--ok); color: #06281a; }
+.option.wrong { opacity: 1; border-color: var(--danger); background: rgba(229, 83, 75, .18); }
+.option.wrong .letter { background: var(--danger); color: #fff; }
+.note { font-size: .95rem; margin-top: 4px; }
+
 .timer-row { display: flex; align-items: center; gap: 10px; }
 .timer-bar { flex: 1; height: 10px; background: var(--bg); border-radius: 999px; overflow: hidden; }
 #m-timer-fill { height: 100%; width: 100%; background: var(--ok); transition: width 1s linear, background .3s; }
 #m-timer-fill.warn { background: var(--danger); }
 .timer-num { font-weight: 800; min-width: 2.5em; text-align: center; }
 .answer {
-  margin-top: 18px;
+  margin-top: 4px;
   padding: 14px;
   border-radius: 14px;
   background: rgba(39, 194, 129, .12);
@@ -275,4 +317,6 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
 @media (max-width: 600px) {
   .card { padding: 20px; }
   .modal-box { padding: 18px; }
+  .options { grid-template-columns: 1fr; gap: 8px; }
+  .option { font-size: 1rem; padding: 10px 12px; }
 }

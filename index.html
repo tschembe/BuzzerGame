@@ -65,6 +65,7 @@
         <button id="m-close" class="icon-btn" title="بازگشت به جدول">✕</button>
       </div>
       <p id="m-question" class="question"></p>
+      <div id="m-options" class="options"></div>
 
       <div id="m-timer-row" class="timer-row">
         <div class="timer-bar"><div id="m-timer-fill"></div></div>
@@ -75,7 +76,10 @@
       <button id="m-reveal" class="btn btn-primary btn-big">نمایش جواب</button>
 
       <div id="m-answer-box" class="hidden">
-        <div class="answer"><span class="muted">جواب درست:</span> <strong id="m-answer"></strong></div>
+        <div class="answer">
+          <div><span class="muted">جواب درست:</span> <strong id="m-answer"></strong></div>
+          <div id="m-note" class="note muted"></div>
+        </div>
         <p class="who">کدام تیم درست جواب داد؟</p>
         <div id="m-teams" class="team-buttons"></div>
       </div>
