@@ -163,12 +163,19 @@
       <div class="modal-head">
         <span id="m-cat" class="chip"></span>
         <span id="m-points" class="chip chip-gold"></span>
-        <button id="m-edit-btn" class="icon-btn" title="ویرایش سوال">✏️</button>
+        <button id="m-edit-btn" class="btn btn-ghost small-btn" title="راستی‌آزمایی سوال">🔍 راستی‌آزمایی</button>
         <button id="m-close" class="icon-btn" title="بازگشت به جدول">✕</button>
       </div>
 
       <!-- فرم ویرایش سوال -->
       <form id="m-edit" class="edit-form hidden">
+        <h3 class="edit-title">🔍 راستی‌آزمایی سوال</h3>
+        <p class="muted small">به سوالی مشکوک هستید؟ سوال و جوابش را کپی کنید و در گوگل جست‌وجو کنید. اگر اشتباه بود، همین‌جا درستش کنید و ذخیره کنید.</p>
+        <div class="verify-row">
+          <button type="button" id="e-copy" class="btn small-btn">📋 کپی سوال و جواب</button>
+          <a id="e-search" class="btn btn-ghost small-btn" target="_blank" rel="noopener">🔎 جست‌وجو در گوگل</a>
+        </div>
+        <p id="e-copy-status" class="small hidden"></p>
         <label for="e-q">متن سوال</label>
         <textarea id="e-q" rows="3"></textarea>
         <span class="field-label">گزینه‌ها <span class="muted small">(جواب درست را با دایره مشخص کنید)</span></span>

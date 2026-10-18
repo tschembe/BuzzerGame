@@ -342,7 +342,7 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
 }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop { from { transform: scale(.92); opacity: 0; } }
-.modal-head { display: flex; align-items: center; gap: 8px; }
+.modal-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .modal-head .chip-gold { margin-inline-end: auto; }
 .chip {
   background: var(--bg2);
@@ -455,8 +455,12 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
 .special-result > .btn-primary { margin-top: 4px; padding: 12px; }
 .score-card.negative .pts { color: var(--danger); }
 
-/* فرم ویرایش سوال */
+/* فرم راستی‌آزمایی و ویرایش سوال */
 .edit-form { display: grid; gap: 8px; margin-top: 16px; }
+.edit-title { margin: 0; font-size: 1.15rem; }
+.edit-form > p { margin: 0; line-height: 1.7; }
+.verify-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.verify-row .btn { flex: 1 1 auto; text-align: center; text-decoration: none; }
 .edit-form label, .edit-form .field-label { font-weight: 600; font-size: .95rem; margin-top: 6px; }
 .edit-form textarea, .edit-form input[type="text"] {
   font: inherit;
@@ -509,5 +513,8 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
   .card { padding: 20px; }
   .modal-box { padding: 18px; }
   .options { grid-template-columns: 1fr; gap: 8px; }
+  /* روی گوشی ✕ کنار برچسب‌ها می‌ماند و دکمه‌ی راستی‌آزمایی به خط بعد می‌رود */
+  .modal-head #m-close { order: 1; }
+  .modal-head #m-edit-btn { order: 2; }
   .option { font-size: 1rem; padding: 10px 12px; }
 }
