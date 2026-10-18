@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>مسابقه اطلاعات عمومی</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- مرحله ۱: اضافه کردن تیم‌ها -->
+  <section id="setup" class="screen">
+    <div class="card setup-card">
+      <h1>🎯 مسابقه اطلاعات عمومی</h1>
+      <p class="muted">تیم‌ها را اضافه کنید و بازی را شروع کنید.</p>
+      <form id="team-form" class="team-form">
+        <input id="team-input" type="text" maxlength="30" placeholder="نام تیم…" autocomplete="off">
+        <button type="submit" class="btn">➕ اضافه کن</button>
+      </form>
+      <ul id="team-list" class="team-list"></ul>
+      <p id="setup-hint" class="muted small">حداقل دو تیم لازم است.</p>
+      <button id="start-btn" class="btn btn-primary btn-big" disabled>شروع بازی ▶</button>
+    </div>
+  </section>
+
+  <!-- مرحله ۲: جدول سوالات -->
+  <section id="board-screen" class="screen hidden">
+    <header class="topbar">
+      <h2>🎯 مسابقه اطلاعات عمومی</h2>
+      <div class="topbar-actions">
+        <span id="remaining" class="muted"></span>
+        <button id="end-btn" class="btn btn-ghost">پایان بازی</button>
+      </div>
+    </header>
+    <div class="board-wrap">
+      <div id="board" class="board"></div>
+    </div>
+    <div id="scoreboard" class="scoreboard"></div>
+  </section>
+
+  <!-- مرحله ۳: اعلام برنده -->
+  <section id="end-screen" class="screen hidden">
+    <div class="card end-card">
+      <div class="trophy">🏆</div>
+      <h1 id="winner-title"></h1>
+      <ol id="ranking" class="ranking"></ol>
+      <button id="restart-btn" class="btn btn-primary btn-big">بازی جدید</button>
+    </div>
+  </section>
+
+  <!-- پنجره‌ی سوال -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="modal-head">
+        <span id="m-cat" class="chip"></span>
+        <span id="m-points" class="chip chip-gold"></span>
+        <button id="m-close" class="icon-btn" title="بازگشت به جدول">✕</button>
+      </div>
+      <p id="m-question" class="question"></p>
+
+      <div id="m-timer-row" class="timer-row">
+        <div class="timer-bar"><div id="m-timer-fill"></div></div>
+        <span id="m-timer" class="timer-num"></span>
+        <button id="m-timer-btn" class="btn btn-ghost small-btn"></button>
+      </div>
+
+      <button id="m-reveal" class="btn btn-primary btn-big">نمایش جواب</button>
+
+      <div id="m-answer-box" class="hidden">
+        <div class="answer"><span class="muted">جواب درست:</span> <strong id="m-answer"></strong></div>
+        <p class="who">کدام تیم درست جواب داد؟</p>
+        <div id="m-teams" class="team-buttons"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/questions.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
