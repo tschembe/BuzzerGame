@@ -227,6 +227,19 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
 .import-panel textarea:focus { outline: 2px solid var(--gold); border-color: transparent; }
 .import-panel input[type="file"] { font: inherit; font-size: .85rem; color: var(--muted); max-width: 100%; }
 
+.adv-rules {
+  margin: -2px 0 0;
+  padding: 10px 14px;
+  padding-inline-start: 30px;
+  border-radius: 12px;
+  background: var(--bg);
+  display: grid;
+  gap: 4px;
+  font-size: .9rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
 /* نوار بالا */
 .topbar {
   display: flex;
@@ -408,6 +421,39 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
 .team-buttons .btn { padding: 12px; overflow-wrap: anywhere; }
 .team-buttons .current { box-shadow: 0 0 0 2px var(--gold) inset; }
 .team-buttons .none { background: transparent; border: 1px dashed var(--border); color: var(--muted); }
+
+/* سوال ویژه‌ی بازی پیشرفته */
+.special-banner {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 2px solid var(--gold);
+  background: rgba(255, 204, 51, .12);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  justify-content: center;
+  align-items: baseline;
+  text-align: center;
+  animation: pop .4s ease;
+}
+.special-banner strong { color: var(--gold); font-size: 1.15rem; }
+.special-result { display: grid; gap: 8px; }
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-block: 6px;
+  padding-inline: 14px 6px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+.result-name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.result-row .btn { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+.result-row .mark-ok.on { background: var(--ok); border-color: var(--ok); color: #06281a; }
+.result-row .mark-bad.on { background: var(--danger); border-color: var(--danger); color: #fff; }
+.special-result > .btn-primary { margin-top: 4px; padding: 12px; }
+.score-card.negative .pts { color: var(--danger); }
 
 /* فرم ویرایش سوال */
 .edit-form { display: grid; gap: 8px; margin-top: 16px; }

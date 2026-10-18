@@ -21,17 +21,30 @@
     }
   }
 
-  // state.used: کلید "دسته-ردیف" ← اندیس تیم برنده یا -1 برای هیچ‌کدام
+  // قوانین بازی پیشرفته؛ قانون تازه را اینجا اضافه کنید
+  const ADVANCED = {
+    specialCount: 3, // تعداد سوال‌های ویژه که تصادفی انتخاب می‌شوند
+    correctMultiplier: 2, // ضریب امتیاز جواب درست در سوال ویژه
+    wrongPenalty: 1, // ضریب امتیاز منفی جواب غلط در سوال ویژه
+  };
+  const ADVANCED_RULES = [
+    `${fa(ADVANCED.specialCount)} سوال به‌صورت تصادفی «سوال ویژه» ⭐ می‌شوند و تا باز نشوند معلوم نیستند.`,
+    `در سوال ویژه، جواب درست ${fa(ADVANCED.correctMultiplier)} برابر امتیاز دارد.`,
+    "در سوال ویژه، تیمی که غلط جواب بدهد به اندازه‌ی امتیاز سوال امتیاز منفی می‌گیرد.",
+  ];
+
+  // state.used: کلید "دسته-ردیف" ← { winner: اندیس تیم درست یا -1, wrong: اندیس تیم‌های غلط }
+  // state.special: کلید سوال‌های ویژه‌ی بازی پیشرفته
   let state = load() || freshState();
   let current = null; // { c, r, attempts, editing }
   let timer = { left: 0, id: null, running: false };
 
   function freshState() {
-    return { phase: "setup", teams: [], used: {}, settings: defaultSettings() };
+    return { phase: "setup", teams: [], used: {}, special: [], settings: defaultSettings() };
   }
 
   function defaultSettings() {
-    return { timer: true, secondChance: false };
+    return { timer: true, secondChance: false, advanced: false };
   }
 
   function load() {
@@ -39,6 +52,9 @@
       const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
       if (!s || !Array.isArray(s.teams) || !s.used) return null;
       s.settings = { ...defaultSettings(), ...s.settings };
+      s.special = Array.isArray(s.special) ? s.special : [];
+      // نسخه‌های قبلی فقط اندیس تیم برنده را نگه می‌داشتند
+      for (const k in s.used) if (typeof s.used[k] === "number") s.used[k] = { winner: s.used[k], wrong: [] };
       return s;
     } catch {
       return null;
@@ -65,6 +81,33 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {}
+  }
+
+  const isSpecial = (key) => state.special.includes(key);
+
+  // امتیاز هر تیم از روی نتیجه‌ی سوال‌ها حساب می‌شود، نه با جمع و تفریق تک‌تک
+  function recalcScores() {
+    state.teams.forEach((t) => (t.score = 0));
+    for (const key in state.used) {
+      const base = POINTS[Number(key.split("-")[1])];
+      const { winner, wrong } = state.used[key];
+      const special = isSpecial(key);
+      const team = (i) => state.teams[i];
+      if (winner >= 0 && team(winner)) team(winner).score += special ? base * ADVANCED.correctMultiplier : base;
+      if (special) wrong.forEach((i) => team(i) && (team(i).score -= base * ADVANCED.wrongPenalty));
+    }
+  }
+
+  function resetGame() {
+    state.used = {};
+    state.special = [];
+    if (state.settings.advanced) {
+      const keys = categories.flatMap((_, c) => POINTS.map((_, r) => `${c}-${r}`));
+      for (let i = 0; i < ADVANCED.specialCount && keys.length; i++) {
+        state.special.push(keys.splice(Math.floor(Math.random() * keys.length), 1)[0]);
+      }
+    }
+    recalcScores();
   }
 
   function showScreen(name) {
@@ -101,6 +144,8 @@
     renderSetInfo();
     $("opt-timer").checked = state.settings.timer;
     $("opt-second").checked = state.settings.secondChance;
+    $("opt-advanced").checked = state.settings.advanced;
+    $("adv-rules").classList.toggle("hidden", !state.settings.advanced);
     const enough = state.teams.length >= 2;
     $("start-btn").disabled = !enough;
     $("setup-hint").classList.toggle("hidden", enough);
@@ -186,7 +231,7 @@
     // ویرایش‌های قبلی مال سوال‌های دیگری بودند
     edits = {};
     saveEdits();
-    state.used = {};
+    resetGame();
     save();
   }
 
@@ -257,9 +302,19 @@
     save();
   };
 
+  $("opt-advanced").onchange = (e) => {
+    state.settings.advanced = e.target.checked;
+    $("adv-rules").classList.toggle("hidden", !e.target.checked);
+    save();
+  };
+  ADVANCED_RULES.forEach((rule) => {
+    const li = document.createElement("li");
+    li.textContent = rule;
+    $("adv-rules").append(li);
+  });
+
   $("start-btn").onclick = () => {
-    state.used = {};
-    state.teams.forEach((t) => (t.score = 0));
+    resetGame();
     showScreen("board");
   };
 
@@ -284,8 +339,9 @@
     if (key in state.used) {
       btn.classList.add("used");
       btn.title = "ویرایش امتیاز این سوال";
-      const w = state.used[key];
-      btn.textContent = w >= 0 && state.teams[w] ? state.teams[w].name : "—";
+      const w = state.used[key].winner;
+      const name = w >= 0 && state.teams[w] ? state.teams[w].name : "—";
+      btn.textContent = isSpecial(key) ? `⭐ ${name}` : name;
     } else {
       btn.textContent = fa(POINTS[r]);
     }
@@ -318,9 +374,10 @@
     const sb = $("scoreboard");
     sb.innerHTML = "";
     const max = Math.max(...state.teams.map((t) => t.score));
+    const anyLead = state.teams.some((t) => t.score !== max);
     state.teams.forEach((t) => {
       const d = document.createElement("div");
-      d.className = "score-card" + (max > 0 && t.score === max ? " leader" : "");
+      d.className = "score-card" + (anyLead && t.score === max ? " leader" : "") + (t.score < 0 ? " negative" : "");
       const n = document.createElement("div");
       n.className = "name";
       n.textContent = t.name;
@@ -353,7 +410,11 @@
     const item = getQuestion(c, r);
     showEditForm(false);
     $("m-cat").textContent = `${cat.icon} ${cat.name}`;
-    $("m-points").textContent = `${fa(POINTS[r])} امتیاز`;
+    const special = isSpecial(key);
+    const base = POINTS[r];
+    $("m-points").textContent = special ? `${fa(base)} × ${fa(ADVANCED.correctMultiplier)}` : `${fa(base)} امتیاز`;
+    $("m-special").classList.toggle("hidden", !special);
+    $("m-special-rules").textContent = `جواب درست: ${fa(base * ADVANCED.correctMultiplier)}+ امتیاز · جواب غلط: ${fa(base * ADVANCED.wrongPenalty)}− امتیاز`;
     $("m-question").textContent = item.q;
     $("m-answer").textContent = item.options[0];
     $("m-note").textContent = item.note || "";
@@ -385,31 +446,91 @@
     $("m-timer-row").classList.toggle("hidden", !state.settings.timer);
     $("m-retry").classList.add("hidden");
 
+    const prev = editing ? state.used[key] : null;
+    if (special) renderSpecialResult(prev);
+    else renderTeamButtons(prev);
+
+    $("modal").classList.remove("hidden");
+    if (editing) {
+      reveal(null);
+      if (special) {
+        $("m-who").textContent = "✏️ نتیجه را اصلاح کنید و «ثبت امتیاز» را بزنید.";
+      } else {
+        const w = prev.winner;
+        const name = w >= 0 && state.teams[w] ? `«${state.teams[w].name}»` : "هیچ تیمی";
+        $("m-who").textContent = `✏️ امتیاز این سوال الان مال ${name} است. به کدام تیم برسد؟`;
+      }
+    } else {
+      $("m-who").textContent = special ? "کدام تیم درست و کدام تیم غلط جواب داد؟" : "کدام تیم درست جواب داد؟";
+      if (state.settings.timer) startTimer();
+    }
+  }
+
+  // سوال معمولی: با یک کلیک تیمی که درست جواب داده انتخاب می‌شود
+  function renderTeamButtons(prev) {
     const teams = $("m-teams");
+    teams.className = "team-buttons";
     teams.innerHTML = "";
-    const owner = editing ? state.used[key] : null;
+    const owner = prev ? prev.winner : null;
     state.teams.forEach((t, i) => {
       const b = document.createElement("button");
       b.className = "btn" + (owner === i ? " current" : "");
       b.textContent = t.name;
-      b.onclick = () => award(i);
+      b.onclick = () => award({ winner: i, wrong: [] });
       teams.append(b);
     });
     const none = document.createElement("button");
     none.className = "btn none" + (owner === -1 ? " current" : "");
     none.textContent = "هیچ تیمی 🙅";
-    none.onclick = () => award(-1);
+    none.onclick = () => award({ winner: -1, wrong: [] });
     teams.append(none);
+  }
 
-    $("modal").classList.remove("hidden");
-    if (editing) {
-      reveal(null);
-      const name = owner >= 0 && state.teams[owner] ? `«${state.teams[owner].name}»` : "هیچ تیمی";
-      $("m-who").textContent = `✏️ امتیاز این سوال الان مال ${name} است. به کدام تیم برسد؟`;
-    } else {
-      $("m-who").textContent = "کدام تیم درست جواب داد؟";
-      if (state.settings.timer) startTimer();
+  // سوال ویژه: برای هر تیم «درست» یا «غلط» زده می‌شود؛ فقط یک تیم می‌تواند درست باشد
+  function renderSpecialResult(prev) {
+    const teams = $("m-teams");
+    teams.className = "special-result";
+    teams.innerHTML = "";
+    const result = { winner: prev ? prev.winner : -1, wrong: prev ? [...prev.wrong] : [] };
+    const rows = state.teams.map((t, i) => {
+      const row = document.createElement("div");
+      row.className = "result-row";
+      const name = document.createElement("span");
+      name.className = "result-name";
+      name.textContent = t.name;
+      const ok = document.createElement("button");
+      ok.className = "btn small-btn mark-ok";
+      ok.textContent = "✓ درست";
+      const bad = document.createElement("button");
+      bad.className = "btn small-btn mark-bad";
+      bad.textContent = "✗ غلط";
+      ok.onclick = () => {
+        result.winner = result.winner === i ? -1 : i;
+        result.wrong = result.wrong.filter((x) => x !== i);
+        paint();
+      };
+      bad.onclick = () => {
+        if (result.wrong.includes(i)) result.wrong = result.wrong.filter((x) => x !== i);
+        else result.wrong.push(i);
+        if (result.winner === i) result.winner = -1;
+        paint();
+      };
+      row.append(name, ok, bad);
+      teams.append(row);
+      return { ok, bad, i };
+    });
+    function paint() {
+      rows.forEach(({ ok, bad, i }) => {
+        ok.classList.toggle("on", result.winner === i);
+        bad.classList.toggle("on", result.wrong.includes(i));
+      });
     }
+    paint();
+    const submit = document.createElement("button");
+    submit.className = "btn btn-primary";
+    submit.textContent = "ثبت امتیاز";
+    submit.onclick = () => award({ winner: result.winner, wrong: [...result.wrong].sort((a, b) => a - b) });
+    teams.append(submit);
   }
 
   function closeModal() {
@@ -518,14 +639,10 @@
 
   $("m-reveal").onclick = () => reveal(null);
 
-  function award(teamIndex) {
+  function award(result) {
     const { c, r, editing } = current;
-    const key = `${c}-${r}`;
-    // در ویرایش، اول امتیاز را از تیم قبلی پس می‌گیریم
-    const prev = state.used[key];
-    if (editing && prev >= 0 && state.teams[prev]) state.teams[prev].score -= POINTS[r];
-    state.used[key] = teamIndex;
-    if (teamIndex >= 0) state.teams[teamIndex].score += POINTS[r];
+    state.used[`${c}-${r}`] = result;
+    recalcScores();
     save();
     closeModal();
     if (!editing && Object.keys(state.used).length >= totalQuestions()) showScreen("end");
@@ -589,7 +706,7 @@
     const winners = ranked.filter((t) => t.score === top);
 
     let title;
-    if (top === 0) title = "هیچ تیمی امتیاز نگرفت!";
+    if (ranked.every((t) => t.score === 0)) title = "هیچ تیمی امتیاز نگرفت!";
     else if (winners.length > 1) title = `تساوی! ${winners.map((w) => w.name).join(" و ")}`;
     else title = `برنده: ${winners[0].name} 🎉`;
     $("winner-title").textContent = title;
@@ -598,7 +715,7 @@
     ol.innerHTML = "";
     ranked.forEach((t, i) => {
       const li = document.createElement("li");
-      if (top > 0 && t.score === top) li.className = "first";
+      if (winners.length < ranked.length && t.score === top) li.className = "first";
       const n = document.createElement("span");
       // رتبه‌ی تیم‌های هم‌امتیاز یکسان است
       const rank = ranked.findIndex((x) => x.score === t.score) + 1;
@@ -615,8 +732,7 @@
 
   $("restart-btn").onclick = () => {
     // تیم‌ها نگه داشته می‌شوند تا بشود سریع دوباره بازی کرد
-    state.used = {};
-    state.teams.forEach((t) => (t.score = 0));
+    resetGame();
     showScreen("setup");
   };
 
