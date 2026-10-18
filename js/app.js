@@ -620,5 +620,321 @@
     showScreen("setup");
   };
 
+  // ---------- منو ----------
+  function openDrawer(open) {
+    $("drawer").classList.toggle("hidden", !open);
+    $("drawer-backdrop").classList.toggle("hidden", !open);
+    $("menu-btn").setAttribute("aria-expanded", String(open));
+  }
+  $("menu-btn").onclick = () => openDrawer(true);
+  $("drawer-close").onclick = () => openDrawer(false);
+  $("drawer-backdrop").onclick = () => openDrawer(false);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") openDrawer(false);
+  });
+
+  // ---------- تنظیمات هوش مصنوعی ----------
+  const AI_KEY = "buzzergame-ai";
+  const LAST_GEN_KEY = "buzzergame-last-generated";
+  const DEFAULT_TOPICS = "تاریخ، جغرافیا، علوم، ادبیات، ورزش، سینما و هنر، فناوری، طبیعت و حیوانات";
+  let ai = {
+    key: "",
+    model: "anthropic/claude-sonnet-4.5",
+    online: false,
+    engine: "openrouter",
+    count: 8,
+    topics: DEFAULT_TOPICS,
+    audience: "بزرگسالان فارسی‌زبان ایرانی با معلومات عمومی متوسط",
+    title: "مجموعه‌ی جدید",
+  };
+  try {
+    ai = { ...ai, ...JSON.parse(localStorage.getItem(AI_KEY)) };
+  } catch {}
+
+  function saveAi() {
+    try {
+      localStorage.setItem(AI_KEY, JSON.stringify(ai));
+    } catch {}
+  }
+
+  function showStatus(id, text, kind) {
+    const el = $(id);
+    el.textContent = text;
+    el.className = `${el.className.split(" ")[0]} small ${kind || ""}`;
+    el.classList.toggle("hidden", !text);
+  }
+
+  $("or-key").value = ai.key;
+  $("or-model").value = ai.model;
+  $("or-online").checked = ai.online;
+  $("gen-count").value = ai.count;
+  $("gen-topics").value = ai.topics;
+  $("gen-audience").value = ai.audience;
+  $("gen-title").value = ai.title;
+
+  $("or-key-toggle").onclick = () => {
+    const input = $("or-key");
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    $("or-key-toggle").textContent = show ? "پنهان" : "نمایش";
+  };
+
+  $("or-save").onclick = () => {
+    ai.key = $("or-key").value.trim();
+    ai.model = $("or-model").value.trim() || "anthropic/claude-sonnet-4.5";
+    ai.online = $("or-online").checked;
+    $("or-model").value = ai.model;
+    saveAi();
+    if (!ai.key) showStatus("or-status", "کلید خالی است.", "error");
+    else if (!ai.key.startsWith("sk-or-")) showStatus("or-status", "ذخیره شد، ولی کلیدهای OpenRouter معمولاً با sk-or- شروع می‌شوند. دوباره بررسی کنید.", "error");
+    else showStatus("or-status", "✓ ذخیره شد.", "ok");
+  };
+
+  $("or-clear").onclick = () => {
+    ai.key = "";
+    $("or-key").value = "";
+    saveAi();
+    showStatus("or-status", "کلید حذف شد.", "");
+  };
+
+  // ---------- تولید سوال ----------
+  // گزینه‌ی Claude فقط وقتی دیده می‌شود که بازی داخل claude.ai باز شده باشد
+  let sampleFn = null;
+  window.claude?.use?.("sample")?.then((fn) => {
+    if (!fn) return;
+    sampleFn = fn;
+    $("gen-engine").classList.remove("hidden");
+    if (!ai.key) ai.engine = "claude";
+    document.querySelector(`input[name="gen-engine"][value="${ai.engine}"]`).checked = true;
+  });
+  document.querySelectorAll('input[name="gen-engine"]').forEach((r) => {
+    r.onchange = () => {
+      ai.engine = r.value;
+      saveAi();
+    };
+  });
+
+  function buildPrompt() {
+    const settings = [
+      `- **تعداد دسته‌ها:** ${fa(ai.count)}`,
+      `- **موضوع دسته‌ها:** ${ai.topics || "به انتخاب خودت"}`,
+      `- **مخاطب:** ${ai.audience || "بزرگسالان فارسی‌زبان"}`,
+      `- **عنوان مجموعه:** ${ai.title || "مجموعه‌ی جدید"}`,
+      "- **سوال‌هایی که نباید تکرار شوند:** سوال‌های خیلی کلیشه‌ای و معروف (مثل پایتخت فرانسه، نویسنده‌ی شاهنامه، نماد شیمیایی طلا)",
+    ].join("\n");
+    return GENERATION_PROMPT.replace(
+      /## تنظیمات درخواست[\s\S]*?\n---/,
+      `## تنظیمات درخواست\n\n${settings}\n\n---`
+    );
+  }
+
+  // تعداد دسته‌هایی که تا الان نوشته شده، برای نمایش پیشرفت
+  function progressText(text) {
+    const done = (text.match(/"name"\s*:/g) || []).length;
+    return done ? `✍️ در حال نوشتن… دسته‌ی ${fa(done)} از ${fa(ai.count)}` : "✍️ در حال نوشتن…";
+  }
+
+  async function generateWithOpenRouter(prompt, signal, onText) {
+    if (!ai.key) throw new Error("اول کلید OpenRouter را در بخش بالا وارد و ذخیره کنید.");
+    let model = ai.model;
+    if (ai.online && !model.endsWith(":online")) model += ":online";
+    let res;
+    try {
+      res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        signal,
+        headers: {
+          Authorization: `Bearer ${ai.key}`,
+          "Content-Type": "application/json",
+          "X-Title": "BuzzerGame",
+        },
+        body: JSON.stringify({
+          model,
+          stream: true,
+          temperature: 0.7,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+    } catch (e) {
+      if (e.name === "AbortError") throw e;
+      throw new Error(
+        "اتصال به OpenRouter برقرار نشد. اینترنت را بررسی کنید. اگر بازی را از لینک claude.ai باز کرده‌اید، آن لینک اجازه‌ی اتصال به سایت‌های دیگر را نمی‌دهد؛ گزینه‌ی Claude را انتخاب کنید یا فایل index.html را مستقیم باز کنید."
+      );
+    }
+    if (!res.ok) {
+      let msg = "";
+      try {
+        msg = (await res.json()).error?.message || "";
+      } catch {}
+      if (res.status === 401) throw new Error("کلید OpenRouter نامعتبر است.");
+      if (res.status === 402) throw new Error("اعتبار حساب OpenRouter کافی نیست. حسابتان را شارژ کنید.");
+      if (res.status === 429) throw new Error("درخواست‌ها زیاد بوده. کمی صبر کنید و دوباره امتحان کنید.");
+      if (res.status === 400 || res.status === 404) throw new Error(`مدل «${model}» پیدا نشد یا درخواست را نپذیرفت. نام مدل را بررسی کنید. ${msg}`);
+      throw new Error(`خطای OpenRouter (${res.status}): ${msg}`);
+    }
+
+    // پاسخ به‌صورت جریانی (SSE) می‌آید
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let text = "";
+    let finish = null;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const data = line.slice(6).trim();
+        if (data === "[DONE]") continue;
+        let chunk;
+        try {
+          chunk = JSON.parse(data);
+        } catch {
+          continue;
+        }
+        if (chunk.error) throw new Error(`خطای OpenRouter: ${chunk.error.message || ""}`);
+        const choice = chunk.choices?.[0];
+        if (choice?.delta?.content) {
+          text += choice.delta.content;
+          onText(text);
+        }
+        if (choice?.finish_reason) finish = choice.finish_reason;
+      }
+    }
+    return { text, truncated: finish === "length" };
+  }
+
+  async function generateWithClaude(prompt, signal, onText) {
+    try {
+      return await sampleFn(prompt, {
+        signal,
+        modelTier: "complex",
+        cache: false,
+        onText: ({ text }) => onText(text),
+      });
+    } catch (e) {
+      if (e.code === "cancelled") throw Object.assign(new Error(), { name: "AbortError" });
+      const msgs = {
+        not_granted: "اجازه‌ی استفاده از Claude داده نشد.",
+        sampling_disabled: "استفاده از Claude برای این حساب فعال نیست.",
+        rate_limited: "به سقف استفاده رسیده‌اید. کمی بعد دوباره امتحان کنید.",
+        session_expired: "دوباره وارد حساب claude.ai شوید.",
+        refused: "Claude این درخواست را انجام نداد. تنظیمات را تغییر دهید و دوباره امتحان کنید.",
+      };
+      throw new Error(msgs[e.code] || "اتصال به Claude قطع شد. دوباره امتحان کنید.");
+    }
+  }
+
+  let genCtl = null;
+  let generated = null; // { set, raw }
+  try {
+    const last = JSON.parse(localStorage.getItem(LAST_GEN_KEY));
+    if (last) generated = { set: validateSet(last.set), raw: last.raw };
+    if (!generated.set) generated = null;
+  } catch {
+    generated = null;
+  }
+
+  function renderGenerated() {
+    $("gen-result").classList.toggle("hidden", !generated);
+    if (!generated) return;
+    const { set } = generated;
+    const total = set.categories.length * POINTS.length;
+    $("gen-summary").textContent = `✓ «${set.title || "مجموعه‌ی جدید"}»: ${fa(set.categories.length)} دسته، ${fa(total)} سوال`;
+    const ul = $("gen-cats");
+    ul.innerHTML = "";
+    set.categories.forEach((c) => {
+      const li = document.createElement("li");
+      li.textContent = `${c.icon} ${c.name}`;
+      ul.append(li);
+    });
+    $("gen-warn").classList.toggle("hidden", state.phase === "setup");
+  }
+
+  $("gen-go").onclick = async () => {
+    ai.count = Math.min(12, Math.max(1, parseInt($("gen-count").value, 10) || 8));
+    ai.topics = $("gen-topics").value.trim();
+    ai.audience = $("gen-audience").value.trim();
+    ai.title = $("gen-title").value.trim();
+    ai.key = $("or-key").value.trim() || ai.key;
+    ai.model = $("or-model").value.trim() || ai.model;
+    ai.online = $("or-online").checked;
+    $("gen-count").value = ai.count;
+    saveAi();
+
+    const useClaude = sampleFn && ai.engine === "claude";
+    genCtl = new AbortController();
+    $("gen-go").disabled = true;
+    $("gen-stop").classList.remove("hidden");
+    let started = Date.now();
+    let text = "";
+    const tickStatus = () => {
+      if (!text) showStatus("gen-status", `🤔 هوش مصنوعی در حال فکر کردن است… (${fa(Math.round((Date.now() - started) / 1000))} ثانیه). ممکن است چند دقیقه طول بکشد.`, "");
+    };
+    tickStatus();
+    const clock = setInterval(tickStatus, 1000);
+    const onText = (t) => {
+      text = t;
+      showStatus("gen-status", progressText(t), "");
+    };
+
+    try {
+      const run = useClaude ? generateWithClaude : generateWithOpenRouter;
+      const res = await run(buildPrompt(), genCtl.signal, onText);
+      text = res.text;
+      if (res.truncated) throw new Error("خروجی نیمه‌کاره ماند (خیلی طولانی بود). تعداد دسته‌ها را کمتر کنید و دوباره امتحان کنید.");
+      let set;
+      try {
+        set = parseSet(text);
+      } catch (e) {
+        throw new Error(`خروجی هوش مصنوعی ایراد داشت: ${e.message} دوباره امتحان کنید.`);
+      }
+      generated = { set, raw: text };
+      try {
+        localStorage.setItem(LAST_GEN_KEY, JSON.stringify(generated));
+      } catch {}
+      showStatus("gen-status", "", "");
+      renderGenerated();
+    } catch (e) {
+      if (e.name === "AbortError") showStatus("gen-status", "متوقف شد.", "");
+      else showStatus("gen-status", e.message, "error");
+    } finally {
+      clearInterval(clock);
+      $("gen-go").disabled = false;
+      $("gen-stop").classList.add("hidden");
+      genCtl = null;
+    }
+  };
+
+  $("gen-stop").onclick = () => genCtl?.abort();
+
+  $("gen-apply").onclick = () => {
+    if (!generated) return;
+    setQuestionSet(generated.set);
+    generated = null;
+    try {
+      localStorage.removeItem(LAST_GEN_KEY);
+    } catch {}
+    renderGenerated();
+    openDrawer(false);
+    showScreen("setup");
+  };
+
+  $("gen-copy").onclick = async () => {
+    if (!generated) return;
+    try {
+      await navigator.clipboard.writeText(generated.raw);
+      $("gen-copy").textContent = "✓ کپی شد";
+    } catch {
+      $("gen-copy").textContent = "کپی نشد";
+    }
+    setTimeout(() => ($("gen-copy").textContent = "کپی متن خروجی"), 2000);
+  };
+
+  renderGenerated();
+
   showScreen(state.phase === "board" || state.phase === "end" ? state.phase : "setup");
 })();

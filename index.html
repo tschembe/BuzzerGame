@@ -10,6 +10,73 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <header class="appbar">
+    <button id="menu-btn" class="icon-btn menu-btn" aria-label="منو" aria-controls="drawer" aria-expanded="false">☰</button>
+    <span class="appbar-title">🎯 مسابقه اطلاعات عمومی</span>
+  </header>
+
+  <!-- منوی کناری -->
+  <div id="drawer-backdrop" class="drawer-backdrop hidden"></div>
+  <aside id="drawer" class="drawer hidden" aria-label="منو">
+    <div class="drawer-head">
+      <strong>منو</strong>
+      <button id="drawer-close" class="icon-btn" aria-label="بستن منو">✕</button>
+    </div>
+
+    <section class="drawer-section">
+      <h3>🔑 کلید OpenRouter</h3>
+      <p class="muted small">کلید را از سایت openrouter.ai (بخش Keys) بگیرید. فقط در همین مرورگر ذخیره می‌شود.</p>
+      <div class="key-row">
+        <input id="or-key" type="password" dir="ltr" placeholder="sk-or-v1-…" autocomplete="off" spellcheck="false">
+        <button id="or-key-toggle" type="button" class="btn btn-ghost small-btn">نمایش</button>
+      </div>
+      <label for="or-model" class="field-label">مدل</label>
+      <input id="or-model" type="text" dir="ltr" list="or-models" spellcheck="false">
+      <datalist id="or-models">
+        <option value="anthropic/claude-sonnet-4.5"></option>
+        <option value="anthropic/claude-opus-4.1"></option>
+        <option value="openai/gpt-5"></option>
+        <option value="google/gemini-2.5-pro"></option>
+      </datalist>
+      <label class="check">
+        <input id="or-online" type="checkbox">
+        <span>جست‌وجوی وب برای راستی‌آزمایی جواب‌ها (دقیق‌تر، کمی گران‌تر)</span>
+      </label>
+      <div class="set-actions">
+        <button id="or-save" type="button" class="btn small-btn">ذخیره</button>
+        <button id="or-clear" type="button" class="btn btn-ghost small-btn">حذف کلید</button>
+      </div>
+      <p id="or-status" class="small hidden"></p>
+    </section>
+
+    <section class="drawer-section">
+      <h3>✨ تولید سوال با هوش مصنوعی</h3>
+      <div id="gen-engine" class="engine hidden">
+        <label class="check"><input type="radio" name="gen-engine" value="openrouter"><span>OpenRouter (با کلید بالا)</span></label>
+        <label class="check"><input type="radio" name="gen-engine" value="claude"><span>Claude، با حساب claude.ai خودتان (بدون کلید)</span></label>
+      </div>
+      <label for="gen-count" class="field-label">تعداد دسته‌ها</label>
+      <input id="gen-count" type="number" min="1" max="12" inputmode="numeric">
+      <label for="gen-topics" class="field-label">موضوع دسته‌ها</label>
+      <textarea id="gen-topics" rows="3"></textarea>
+      <label for="gen-audience" class="field-label">مخاطب</label>
+      <input id="gen-audience" type="text">
+      <label for="gen-title" class="field-label">عنوان مجموعه</label>
+      <input id="gen-title" type="text">
+      <button id="gen-go" type="button" class="btn btn-primary btn-big">تولید سوال‌ها</button>
+      <button id="gen-stop" type="button" class="btn btn-ghost hidden">توقف</button>
+      <p id="gen-status" class="gen-status hidden"></p>
+      <div id="gen-result" class="gen-result hidden">
+        <p id="gen-summary"></p>
+        <ul id="gen-cats" class="gen-cats"></ul>
+        <p id="gen-warn" class="muted small hidden">با استفاده از این سوال‌ها، بازی فعلی تمام می‌شود و از اول شروع می‌کنید.</p>
+        <div class="set-actions">
+          <button id="gen-apply" type="button" class="btn btn-primary small-btn">استفاده از این سوال‌ها</button>
+          <button id="gen-copy" type="button" class="btn btn-ghost small-btn">کپی متن خروجی</button>
+        </div>
+      </div>
+    </section>
+  </aside>
   <!-- مرحله ۱: اضافه کردن تیم‌ها -->
   <section id="setup" class="screen">
     <div class="card setup-card">
@@ -58,7 +125,6 @@
   <!-- مرحله ۲: جدول سوالات -->
   <section id="board-screen" class="screen hidden">
     <header class="topbar">
-      <h2>🎯 مسابقه اطلاعات عمومی</h2>
       <div class="topbar-actions">
         <span id="remaining" class="muted"></span>
         <button id="end-btn" class="btn btn-ghost">پایان بازی</button>
@@ -139,6 +205,7 @@
   </div>
 
   <script src="js/questions.js"></script>
+  <script src="js/prompt.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
