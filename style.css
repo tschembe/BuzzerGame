@@ -128,6 +128,24 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
   font-weight: 600;
 }
 
+.set-info { margin: 0; font-size: .95rem; }
+.set-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.import-panel { display: grid; gap: 8px; }
+.import-panel p { margin: 0; }
+.import-panel textarea {
+  font: .85rem/1.5 ui-monospace, Menlo, Consolas, monospace;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+}
+.import-panel textarea:focus { outline: 2px solid var(--gold); border-color: transparent; }
+.import-panel input[type="file"] { font: inherit; font-size: .85rem; color: var(--muted); max-width: 100%; }
+
 /* نوار بالا */
 .topbar {
   display: flex;

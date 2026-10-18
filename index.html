@@ -31,6 +31,24 @@
           <span>اگر تیم اول غلط جواب داد، تیم دوم بتواند جواب بدهد</span>
         </label>
       </fieldset>
+      <fieldset class="settings">
+        <legend>سوال‌ها</legend>
+        <p id="set-info" class="set-info"></p>
+        <div class="set-actions">
+          <button type="button" id="import-open" class="btn btn-ghost small-btn">📥 وارد کردن سوال‌های جدید</button>
+          <button type="button" id="set-reset" class="btn btn-ghost small-btn hidden">بازگشت به سوال‌های پیش‌فرض</button>
+        </div>
+        <div id="import-panel" class="import-panel hidden">
+          <p class="muted small">متن خروجی هوش مصنوعی را اینجا بچسبانید، یا فایلش را انتخاب کنید.</p>
+          <textarea id="import-text" rows="6" dir="ltr" placeholder='{ "categories": [ ... ] }'></textarea>
+          <input id="import-file" type="file" accept=".json,.txt,.md,application/json,text/plain,text/markdown">
+          <p id="import-error" class="error small hidden"></p>
+          <div class="set-actions">
+            <button type="button" id="import-go" class="btn btn-primary small-btn">وارد کن</button>
+            <button type="button" id="import-cancel" class="btn btn-ghost small-btn">انصراف</button>
+          </div>
+        </div>
+      </fieldset>
       <p id="dup-hint" class="error small hidden">این نام قبلاً اضافه شده است.</p>
       <p id="setup-hint" class="muted small">حداقل دو تیم لازم است.</p>
       <button id="start-btn" class="btn btn-primary btn-big" disabled>شروع بازی ▶</button>

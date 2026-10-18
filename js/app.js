@@ -1,12 +1,25 @@
 (() => {
   const STORAGE_KEY = "buzzergame-state";
   const EDITS_KEY = "buzzergame-question-edits";
+  const SET_KEY = "buzzergame-question-set";
   const QUESTION_TIME = 30; // ثانیه
 
   const $ = (id) => document.getElementById(id);
   const fa = (n) => Number(n).toLocaleString("fa-IR");
   const LETTERS = ["الف", "ب", "ج", "د"];
-  const totalQuestions = CATEGORIES.reduce((s, c) => s + c.questions.length, 0);
+
+  // سوال‌های واردشده جای سوال‌های پیش‌فرض را می‌گیرند
+  let questionSet = loadQuestionSet();
+  let categories = questionSet ? questionSet.categories : CATEGORIES;
+  const totalQuestions = () => categories.length * POINTS.length;
+
+  function loadQuestionSet() {
+    try {
+      return validateSet(JSON.parse(localStorage.getItem(SET_KEY)));
+    } catch {
+      return null;
+    }
+  }
 
   // state.used: کلید "دسته-ردیف" ← اندیس تیم برنده یا -1 برای هیچ‌کدام
   let state = load() || freshState();
@@ -45,7 +58,7 @@
   }
 
   function getQuestion(c, r) {
-    return edits[`${c}-${r}`] || CATEGORIES[c].questions[r];
+    return edits[`${c}-${r}`] || categories[c].questions[r];
   }
 
   function save() {
@@ -85,6 +98,7 @@
       li.append(name, del);
       list.append(li);
     });
+    renderSetInfo();
     $("opt-timer").checked = state.settings.timer;
     $("opt-second").checked = state.settings.secondChance;
     const enough = state.teams.length >= 2;
@@ -106,6 +120,133 @@
     save();
     renderSetup();
   });
+
+  // ---------- وارد کردن سوال ----------
+  // ی و ک عربی را به فارسی تبدیل می‌کند
+  function clean(v) {
+    return typeof v === "string" ? v.replace(/ي/g, "ی").replace(/ك/g, "ک").trim() : "";
+  }
+
+  // متن را می‌خواند (حتی اگر داخل ```json یا همراه توضیح باشد) و بررسی می‌کند
+  function parseSet(text) {
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start < 0 || end < start) throw new Error("متن JSON پیدا نشد. مطمئن شوید کل خروجی را کپی کرده‌اید.");
+    let data;
+    try {
+      data = JSON.parse(text.slice(start, end + 1));
+    } catch (e) {
+      throw new Error("متن JSON خراب است و خوانده نشد. از هوش مصنوعی بخواهید خروجی را به‌صورت JSON معتبر تکرار کند.");
+    }
+    return validateSet(data, true);
+  }
+
+  // اگر strict باشد، به‌جای null خطای قابل‌فهم پرتاب می‌کند
+  function validateSet(data, strict = false) {
+    const fail = (msg) => {
+      if (strict) throw new Error(msg);
+      return null;
+    };
+    if (!data || !Array.isArray(data.categories)) return fail("فیلد «categories» پیدا نشد.");
+    if (data.categories.length < 1 || data.categories.length > 12)
+      return fail("تعداد دسته‌ها باید بین ۱ تا ۱۲ باشد.");
+    const cats = [];
+    for (const [ci, cat] of data.categories.entries()) {
+      const where = `دسته‌ی ${fa(ci + 1)}`;
+      const name = clean(cat && cat.name);
+      if (!name) return fail(`${where}: نام دسته خالی است.`);
+      if (!Array.isArray(cat.questions) || cat.questions.length !== POINTS.length)
+        return fail(`دسته‌ی «${name}» باید دقیقاً ${fa(POINTS.length)} سوال داشته باشد.`);
+      const questions = [];
+      for (const [qi, item] of cat.questions.entries()) {
+        const at = `دسته‌ی «${name}»، سوال ${fa(POINTS[qi])} امتیازی`;
+        const q = clean(item && item.q);
+        if (!q) return fail(`${at}: متن سوال خالی است.`);
+        const options = Array.isArray(item.options) ? item.options.map(clean) : [];
+        if (options.length !== 4 || options.some((o) => !o))
+          return fail(`${at}: باید دقیقاً ۴ گزینه‌ی پر داشته باشد.`);
+        if (new Set(options).size !== 4) return fail(`${at}: گزینه‌ها تکراری هستند.`);
+        const out = { q, options };
+        const note = clean(item.note);
+        if (note) out.note = note;
+        questions.push(out);
+      }
+      cats.push({ name, icon: clean(cat.icon) || "❓", questions });
+    }
+    return { title: clean(data.title), categories: cats };
+  }
+
+  function setQuestionSet(set) {
+    questionSet = set;
+    categories = set ? set.categories : CATEGORIES;
+    try {
+      if (set) localStorage.setItem(SET_KEY, JSON.stringify(set));
+      else localStorage.removeItem(SET_KEY);
+    } catch {}
+    // ویرایش‌های قبلی مال سوال‌های دیگری بودند
+    edits = {};
+    saveEdits();
+    state.used = {};
+    save();
+  }
+
+  function renderSetInfo() {
+    const n = fa(categories.length);
+    const total = fa(totalQuestions());
+    $("set-info").textContent = questionSet
+      ? `سوال‌های واردشده${questionSet.title ? `: «${questionSet.title}»` : ""} (${n} دسته، ${total} سوال)`
+      : `سوال‌های پیش‌فرض (${n} دسته، ${total} سوال)`;
+    $("set-reset").classList.toggle("hidden", !questionSet);
+    $("set-reset").textContent = "بازگشت به سوال‌های پیش‌فرض";
+    $("set-reset").dataset.armed = "";
+  }
+
+  function toggleImport(show) {
+    $("import-panel").classList.toggle("hidden", !show);
+    $("import-open").classList.toggle("hidden", show);
+    $("import-error").classList.add("hidden");
+    if (!show) {
+      $("import-text").value = "";
+      $("import-file").value = "";
+    }
+  }
+
+  function importText(text) {
+    try {
+      setQuestionSet(parseSet(text));
+      toggleImport(false);
+      renderSetup();
+    } catch (e) {
+      $("import-error").textContent = e.message;
+      $("import-error").classList.remove("hidden");
+    }
+  }
+
+  $("import-open").onclick = () => toggleImport(true);
+  $("import-cancel").onclick = () => toggleImport(false);
+  $("import-go").onclick = () => importText($("import-text").value);
+  $("import-file").onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      $("import-text").value = reader.result;
+      importText(reader.result);
+    };
+    reader.readAsText(file);
+  };
+
+  // برای جلوگیری از کلیک اشتباه، بازگشت به پیش‌فرض دو بار زدن لازم دارد
+  $("set-reset").onclick = () => {
+    const btn = $("set-reset");
+    if (!btn.dataset.armed) {
+      btn.dataset.armed = "1";
+      btn.textContent = "سوال‌های واردشده پاک می‌شوند. دوباره بزنید";
+      return;
+    }
+    setQuestionSet(null);
+    renderSetup();
+  };
 
   $("opt-timer").onchange = (e) => {
     state.settings.timer = e.target.checked;
@@ -158,18 +299,18 @@
     board.classList.toggle("rotated", narrow.matches);
 
     if (narrow.matches) {
-      CATEGORIES.forEach((cat, c) => {
+      categories.forEach((cat, c) => {
         board.append(catHead(cat));
         POINTS.forEach((_, r) => board.append(cell(c, r)));
       });
     } else {
-      board.style.setProperty("--cols", CATEGORIES.length);
-      CATEGORIES.forEach((cat) => board.append(catHead(cat)));
-      POINTS.forEach((_, r) => CATEGORIES.forEach((_, c) => board.append(cell(c, r))));
+      board.style.setProperty("--cols", categories.length);
+      categories.forEach((cat) => board.append(catHead(cat)));
+      POINTS.forEach((_, r) => categories.forEach((_, c) => board.append(cell(c, r))));
     }
 
     renderScores();
-    const left = totalQuestions - Object.keys(state.used).length;
+    const left = totalQuestions() - Object.keys(state.used).length;
     $("remaining").textContent = `${fa(left)} سوال باقی مانده`;
   }
 
@@ -208,7 +349,7 @@
     const key = `${c}-${r}`;
     const editing = key in state.used;
     current = { c, r, attempts: 0, editing };
-    const cat = CATEGORIES[c];
+    const cat = categories[c];
     const item = getQuestion(c, r);
     showEditForm(false);
     $("m-cat").textContent = `${cat.icon} ${cat.name}`;
@@ -387,7 +528,7 @@
     if (teamIndex >= 0) state.teams[teamIndex].score += POINTS[r];
     save();
     closeModal();
-    if (!editing && Object.keys(state.used).length >= totalQuestions) showScreen("end");
+    if (!editing && Object.keys(state.used).length >= totalQuestions()) showScreen("end");
     else renderBoard();
   }
 
