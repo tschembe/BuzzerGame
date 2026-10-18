@@ -71,10 +71,9 @@
     const input = $("team-input");
     const name = input.value.trim();
     if (!name) return;
-    if (state.teams.some((t) => t.name === name)) {
-      alert("این نام قبلاً اضافه شده است.");
-      return;
-    }
+    const dup = state.teams.some((t) => t.name === name);
+    $("dup-hint").classList.toggle("hidden", !dup);
+    if (dup) return;
     state.teams.push({ name, score: 0 });
     input.value = "";
     input.focus();
@@ -89,36 +88,49 @@
   };
 
   // ---------- جدول ----------
+  // در صفحه‌های باریک (گوشی) جدول چرخانده می‌شود: هر دسته یک ردیف
+  const narrow = window.matchMedia("(max-width: 700px)");
+  narrow.addEventListener("change", () => state.phase === "board" && renderBoard());
+
+  function catHead(cat) {
+    const h = document.createElement("div");
+    h.className = "cat-head";
+    h.innerHTML = `<span class="ico"></span><span class="nm"></span>`;
+    h.querySelector(".ico").textContent = cat.icon;
+    h.querySelector(".nm").textContent = cat.name;
+    return h;
+  }
+
+  function cell(c, r) {
+    const btn = document.createElement("button");
+    btn.className = "cell";
+    const key = `${c}-${r}`;
+    if (key in state.used) {
+      btn.disabled = true;
+      const w = state.used[key];
+      btn.textContent = w >= 0 && state.teams[w] ? state.teams[w].name : "—";
+    } else {
+      btn.textContent = fa(POINTS[r]);
+      btn.onclick = () => openQuestion(c, r);
+    }
+    return btn;
+  }
+
   function renderBoard() {
     const board = $("board");
-    board.style.setProperty("--cols", CATEGORIES.length);
     board.innerHTML = "";
+    board.classList.toggle("rotated", narrow.matches);
 
-    CATEGORIES.forEach((cat) => {
-      const h = document.createElement("div");
-      h.className = "cat-head";
-      h.innerHTML = `<span class="ico"></span><span class="nm"></span>`;
-      h.querySelector(".ico").textContent = cat.icon;
-      h.querySelector(".nm").textContent = cat.name;
-      board.append(h);
-    });
-
-    POINTS.forEach((pts, r) => {
+    if (narrow.matches) {
       CATEGORIES.forEach((cat, c) => {
-        const btn = document.createElement("button");
-        btn.className = "cell";
-        const key = `${c}-${r}`;
-        if (key in state.used) {
-          btn.disabled = true;
-          const w = state.used[key];
-          btn.textContent = w >= 0 && state.teams[w] ? state.teams[w].name : "—";
-        } else {
-          btn.textContent = fa(pts);
-          btn.onclick = () => openQuestion(c, r);
-        }
-        board.append(btn);
+        board.append(catHead(cat));
+        POINTS.forEach((_, r) => board.append(cell(c, r)));
       });
-    });
+    } else {
+      board.style.setProperty("--cols", CATEGORIES.length);
+      CATEGORIES.forEach((cat) => board.append(catHead(cat)));
+      POINTS.forEach((_, r) => CATEGORIES.forEach((_, c) => board.append(cell(c, r))));
+    }
 
     renderScores();
     const left = totalQuestions - Object.keys(state.used).length;
@@ -143,8 +155,15 @@
     });
   }
 
-  $("end-btn").onclick = () => {
-    if (confirm("بازی همین‌جا تمام شود و برنده اعلام شود؟")) showScreen("end");
+  function toggleEndConfirm(show) {
+    $("end-btn").classList.toggle("hidden", show);
+    $("end-confirm").classList.toggle("hidden", !show);
+  }
+  $("end-btn").onclick = () => toggleEndConfirm(true);
+  $("end-no").onclick = () => toggleEndConfirm(false);
+  $("end-yes").onclick = () => {
+    toggleEndConfirm(false);
+    showScreen("end");
   };
 
   // ---------- پنجره‌ی سوال ----------

@@ -20,6 +20,7 @@
         <button type="submit" class="btn">➕ اضافه کن</button>
       </form>
       <ul id="team-list" class="team-list"></ul>
+      <p id="dup-hint" class="error small hidden">این نام قبلاً اضافه شده است.</p>
       <p id="setup-hint" class="muted small">حداقل دو تیم لازم است.</p>
       <button id="start-btn" class="btn btn-primary btn-big" disabled>شروع بازی ▶</button>
     </div>
@@ -32,6 +33,11 @@
       <div class="topbar-actions">
         <span id="remaining" class="muted"></span>
         <button id="end-btn" class="btn btn-ghost">پایان بازی</button>
+        <span id="end-confirm" class="end-confirm hidden">
+          <span>بازی تمام شود؟</span>
+          <button id="end-yes" class="btn btn-primary small-btn">بله</button>
+          <button id="end-no" class="btn btn-ghost small-btn">نه</button>
+        </span>
       </div>
     </header>
     <div class="board-wrap">
