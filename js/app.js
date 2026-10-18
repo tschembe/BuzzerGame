@@ -1,5 +1,6 @@
 (() => {
   const STORAGE_KEY = "buzzergame-state";
+  const EDITS_KEY = "buzzergame-question-edits";
   const QUESTION_TIME = 30; // ثانیه
 
   const $ = (id) => document.getElementById(id);
@@ -29,6 +30,22 @@
     } catch {
       return null;
     }
+  }
+
+  // سوال‌های ویرایش‌شده جدا ذخیره می‌شوند تا در بازی‌های بعدی هم بمانند
+  let edits = {};
+  try {
+    edits = JSON.parse(localStorage.getItem(EDITS_KEY)) || {};
+  } catch {}
+
+  function saveEdits() {
+    try {
+      localStorage.setItem(EDITS_KEY, JSON.stringify(edits));
+    } catch {}
+  }
+
+  function getQuestion(c, r) {
+    return edits[`${c}-${r}`] || CATEGORIES[c].questions[r];
   }
 
   function save() {
@@ -192,7 +209,8 @@
     const editing = key in state.used;
     current = { c, r, attempts: 0, editing };
     const cat = CATEGORIES[c];
-    const item = cat.questions[r];
+    const item = getQuestion(c, r);
+    showEditForm(false);
     $("m-cat").textContent = `${cat.icon} ${cat.name}`;
     $("m-points").textContent = `${fa(POINTS[r])} امتیاز`;
     $("m-question").textContent = item.q;
@@ -260,6 +278,75 @@
   }
 
   $("m-close").onclick = closeModal;
+
+  // ---------- ویرایش سوال ----------
+  function showEditForm(show) {
+    $("m-edit").classList.toggle("hidden", !show);
+    $("m-view").classList.toggle("hidden", show);
+    $("m-edit-btn").classList.toggle("hidden", show);
+  }
+
+  $("m-edit-btn").onclick = () => {
+    const { c, r } = current;
+    const item = getQuestion(c, r);
+    stopTimer();
+    $("e-q").value = item.q;
+    $("e-note").value = item.note || "";
+    const box = $("e-options");
+    box.innerHTML = "";
+    item.options.forEach((opt, i) => {
+      const row = document.createElement("label");
+      row.className = "edit-option";
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "e-correct";
+      radio.value = i;
+      radio.checked = i === 0;
+      radio.title = "جواب درست";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.id = `e-opt-${i}`;
+      input.value = opt;
+      row.append(radio, input);
+      box.append(row);
+    });
+    $("e-error").classList.add("hidden");
+    $("e-reset").classList.toggle("hidden", !edits[`${c}-${r}`]);
+    showEditForm(true);
+  };
+
+  $("m-edit").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = $("e-q").value.trim();
+    const opts = [0, 1, 2, 3].map((i) => $(`e-opt-${i}`).value.trim());
+    const correct = Number(document.querySelector('input[name="e-correct"]:checked').value);
+    let err = "";
+    if (!q) err = "متن سوال خالی است.";
+    else if (opts.some((o) => !o)) err = "همه‌ی چهار گزینه باید پر شوند.";
+    else if (new Set(opts).size < 4) err = "گزینه‌ها نباید تکراری باشند.";
+    $("e-error").textContent = err;
+    $("e-error").classList.toggle("hidden", !err);
+    if (err) return;
+
+    // جواب درست همیشه گزینه‌ی اول ذخیره می‌شود
+    const options = [opts[correct], ...opts.filter((_, i) => i !== correct)];
+    const item = { q, options };
+    const note = $("e-note").value.trim();
+    if (note) item.note = note;
+    const { c, r } = current;
+    edits[`${c}-${r}`] = item;
+    saveEdits();
+    openQuestion(c, r);
+  });
+
+  $("e-cancel").onclick = () => openQuestion(current.c, current.r);
+
+  $("e-reset").onclick = () => {
+    const { c, r } = current;
+    delete edits[`${c}-${r}`];
+    saveEdits();
+    openQuestion(c, r);
+  };
 
   // با فرصت دوم، اولین جواب غلط فقط همان گزینه را رد می‌کند و نوبت به تیم بعدی می‌رسد
   function pick(b) {

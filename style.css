@@ -232,7 +232,7 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop { from { transform: scale(.92); opacity: 0; } }
 .modal-head { display: flex; align-items: center; gap: 8px; }
-.modal-head .icon-btn { margin-inline-start: auto; }
+.modal-head .chip-gold { margin-inline-end: auto; }
 .chip {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -310,6 +310,28 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
 .team-buttons .btn { padding: 12px; overflow-wrap: anywhere; }
 .team-buttons .current { box-shadow: 0 0 0 2px var(--gold) inset; }
 .team-buttons .none { background: transparent; border: 1px dashed var(--border); color: var(--muted); }
+
+/* فرم ویرایش سوال */
+.edit-form { display: grid; gap: 8px; margin-top: 16px; }
+.edit-form label, .edit-form .field-label { font-weight: 600; font-size: .95rem; margin-top: 6px; }
+.edit-form textarea, .edit-form input[type="text"] {
+  font: inherit;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+}
+.edit-form textarea:focus, .edit-form input[type="text"]:focus { outline: 2px solid var(--gold); border-color: transparent; }
+.edit-options { display: grid; gap: 8px; }
+.edit-form .edit-option { display: flex; align-items: center; gap: 10px; margin: 0; font-weight: 400; }
+.edit-option input[type="radio"] { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--ok); cursor: pointer; }
+.edit-option:has(input:checked) input[type="text"] { border-color: var(--ok); }
+.edit-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.edit-actions .btn { flex: 1 1 auto; }
 
 /* پایان بازی */
 .trophy { font-size: 4rem; animation: pop .5s ease; }
