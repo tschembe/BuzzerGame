@@ -105,10 +105,10 @@
       </fieldset>
       <fieldset class="settings">
         <legend>سوال‌ها</legend>
-        <p id="set-info" class="set-info"></p>
+        <div id="set-list" class="set-list" role="radiogroup" aria-label="انتخاب سری سوال"></div>
         <div class="set-actions">
           <button type="button" id="import-open" class="btn btn-ghost small-btn">📥 وارد کردن سوال‌های جدید</button>
-          <button type="button" id="set-reset" class="btn btn-ghost small-btn hidden">بازگشت به سوال‌های پیش‌فرض</button>
+          <button type="button" id="set-reset" class="btn btn-ghost small-btn hidden">حذف سوال‌های واردشده</button>
         </div>
         <div id="import-panel" class="import-panel hidden">
           <p class="muted small">متن خروجی هوش مصنوعی را اینجا بچسبانید، یا فایلش را انتخاب کنید.</p>
@@ -221,6 +221,7 @@
   </div>
 
   <script src="js/questions.js"></script>
+  <script src="js/questions-2.js"></script>
   <script src="js/prompt.js"></script>
   <script src="js/app.js"></script>
 </body>

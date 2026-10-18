@@ -8,9 +8,9 @@
   const fa = (n) => Number(n).toLocaleString("fa-IR");
   const LETTERS = ["الف", "ب", "ج", "د"];
 
-  // سوال‌های واردشده جای سوال‌های پیش‌فرض را می‌گیرند
+  // سری‌های پیش‌فرض در QUESTION_SETS هستند؛ سوال‌های واردشده یک سری جدا با شناسه‌ی "imported" می‌شوند
   let questionSet = loadQuestionSet();
-  let categories = questionSet ? questionSet.categories : CATEGORIES;
+  let categories; // دسته‌های سری انتخاب‌شده، بعد از خواندن state مقدار می‌گیرد
   const totalQuestions = () => categories.length * POINTS.length;
 
   function loadQuestionSet() {
@@ -44,7 +44,12 @@
   }
 
   function defaultSettings() {
-    return { timer: true, secondChance: false, advanced: false };
+    return { timer: true, secondChance: false, advanced: false, setId: QUESTION_SETS[0].id };
+  }
+
+  function categoriesFor(id) {
+    if (id === "imported" && questionSet) return questionSet.categories;
+    return (QUESTION_SETS.find((x) => x.id === id) || QUESTION_SETS[0]).categories;
   }
 
   function load() {
@@ -53,6 +58,9 @@
       if (!s || !Array.isArray(s.teams) || !s.used) return null;
       s.settings = { ...defaultSettings(), ...s.settings };
       s.special = Array.isArray(s.special) ? s.special : [];
+      // نسخه‌های قبلی سری انتخابی نداشتند: اگر سوالی وارد شده بود همان در حال استفاده بود
+      if (!s.settings.setId || (s.settings.setId === "imported" && !questionSet))
+        s.settings.setId = questionSet && !s.settings.setId ? "imported" : QUESTION_SETS[0].id;
       // نسخه‌های قبلی فقط اندیس تیم برنده را نگه می‌داشتند
       for (const k in s.used) if (typeof s.used[k] === "number") s.used[k] = { winner: s.used[k], wrong: [] };
       return s;
@@ -61,11 +69,18 @@
     }
   }
 
-  // سوال‌های ویرایش‌شده جدا ذخیره می‌شوند تا در بازی‌های بعدی هم بمانند
+  categories = categoriesFor(state.settings.setId);
+
+  // سوال‌های ویرایش‌شده برای هر سری جدا ذخیره می‌شوند تا در بازی‌های بعدی هم بمانند
   let edits = {};
   try {
     edits = JSON.parse(localStorage.getItem(EDITS_KEY)) || {};
   } catch {}
+  // نسخه‌های قبلی ویرایش‌ها را بدون سری نگه می‌داشتند (کلیدهایی مثل "0-1")
+  if (Object.keys(edits).some((k) => /^\d+-\d+$/.test(k))) {
+    edits = { [questionSet ? "imported" : QUESTION_SETS[0].id]: edits };
+  }
+  const setEdits = () => (edits[state.settings.setId] ||= {});
 
   function saveEdits() {
     try {
@@ -74,7 +89,7 @@
   }
 
   function getQuestion(c, r) {
-    return edits[`${c}-${r}`] || categories[c].questions[r];
+    return setEdits()[`${c}-${r}`] || categories[c].questions[r];
   }
 
   function save() {
@@ -221,28 +236,52 @@
     return { title: clean(data.title), categories: cats };
   }
 
+  // سوال‌های واردشده را ذخیره و انتخاب می‌کند؛ با null حذفشان می‌کند و به سری اول برمی‌گردد
   function setQuestionSet(set) {
     questionSet = set;
-    categories = set ? set.categories : CATEGORIES;
     try {
       if (set) localStorage.setItem(SET_KEY, JSON.stringify(set));
       else localStorage.removeItem(SET_KEY);
     } catch {}
-    // ویرایش‌های قبلی مال سوال‌های دیگری بودند
-    edits = {};
+    // ویرایش‌های قبلی مال سوال‌های واردشده‌ی دیگری بودند
+    delete edits.imported;
     saveEdits();
+    selectSet(set ? "imported" : QUESTION_SETS[0].id);
+  }
+
+  function selectSet(id) {
+    state.settings.setId = id;
+    categories = categoriesFor(id);
     resetGame();
     save();
   }
 
   function renderSetInfo() {
-    const n = fa(categories.length);
-    const total = fa(totalQuestions());
-    $("set-info").textContent = questionSet
-      ? `سوال‌های واردشده${questionSet.title ? `: «${questionSet.title}»` : ""} (${n} دسته، ${total} سوال)`
-      : `سوال‌های پیش‌فرض (${n} دسته، ${total} سوال)`;
+    const list = $("set-list");
+    list.innerHTML = "";
+    const options = QUESTION_SETS.map((x) => ({ id: x.id, title: x.title, cats: x.categories }));
+    if (questionSet)
+      options.push({ id: "imported", title: `واردشده${questionSet.title ? `: «${questionSet.title}»` : ""}`, cats: questionSet.categories });
+    options.forEach((o) => {
+      const label = document.createElement("label");
+      label.className = "check set-option";
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "question-set";
+      input.value = o.id;
+      input.checked = o.id === state.settings.setId;
+      input.onchange = () => selectSet(o.id);
+      const text = document.createElement("span");
+      text.textContent = o.title;
+      const count = document.createElement("span");
+      count.className = "muted small";
+      count.textContent = ` (${fa(o.cats.length)} دسته، ${fa(o.cats.length * POINTS.length)} سوال)`;
+      text.append(count);
+      label.append(input, text);
+      list.append(label);
+    });
     $("set-reset").classList.toggle("hidden", !questionSet);
-    $("set-reset").textContent = "بازگشت به سوال‌های پیش‌فرض";
+    $("set-reset").textContent = "حذف سوال‌های واردشده";
     $("set-reset").dataset.armed = "";
   }
 
@@ -574,7 +613,7 @@
     });
     $("e-error").classList.add("hidden");
     $("e-copy-status").classList.add("hidden");
-    $("e-reset").classList.toggle("hidden", !edits[`${c}-${r}`]);
+    $("e-reset").classList.toggle("hidden", !setEdits()[`${c}-${r}`]);
     updateSearchLink();
     showEditForm(true);
   };
@@ -639,7 +678,7 @@
     const note = $("e-note").value.trim();
     if (note) item.note = note;
     const { c, r } = current;
-    edits[`${c}-${r}`] = item;
+    setEdits()[`${c}-${r}`] = item;
     saveEdits();
     openQuestion(c, r);
   });
@@ -648,7 +687,7 @@
 
   $("e-reset").onclick = () => {
     const { c, r } = current;
-    delete edits[`${c}-${r}`];
+    delete setEdits()[`${c}-${r}`];
     saveEdits();
     openQuestion(c, r);
   };
