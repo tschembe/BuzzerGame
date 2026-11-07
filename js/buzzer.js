@@ -202,7 +202,8 @@
           if (mark === ".") cell.textContent = fa(pts);
           else {
             const t = mark === "-" ? null : teams[parseInt(mark, 36)];
-            cell.textContent = (b.sp?.includes(`${c}-${r}`) ? "⭐" : "") + (t ? t.name : "—");
+            const name = t ? t.name : "—";
+            cell.textContent = (b.sp?.includes(`${c}-${r}`) ? "⭐" : "") + (name.length > 12 ? name.slice(0, 11).trim() + "…" : name);
             if (t) cell.style.setProperty("--team", TEAM_COLORS[t.c % TEAM_COLORS.length]);
           }
           board.append(cell);

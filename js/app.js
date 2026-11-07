@@ -12,6 +12,9 @@
   const BZ = window.Buzzer;
   const TEAM_COLORS = BZ?.colors || ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#ec4899", "#14b8a6", "#f97316"];
   const MAX_TEAMS = 12;
+  // روی خانه‌های جدول، اسم‌های بلند کوتاه می‌شوند تا خانه بیش از حد بلند نشود
+  const SHORT_NAME = 14;
+  const shortName = (name) => (name.length > SHORT_NAME ? name.slice(0, SHORT_NAME - 1).trim() + "…" : name);
   const teamColor = (t) => TEAM_COLORS[(t.color || 0) % TEAM_COLORS.length];
 
   // سری‌های پیش‌فرض در QUESTION_SETS هستند؛ سوال‌های واردشده یک سری جدا با شناسه‌ی "imported" می‌شوند
@@ -446,7 +449,8 @@
       btn.title = "ویرایش امتیاز این سوال";
       const w = state.used[key].winner;
       const name = w >= 0 && state.teams[w] ? state.teams[w].name : "—";
-      btn.textContent = isSpecial(key) ? `⭐ ${name}` : name;
+      btn.textContent = (isSpecial(key) ? "⭐ " : "") + shortName(name);
+      if (name.length > SHORT_NAME) btn.title = name;
     } else {
       btn.textContent = fa(levels[r]);
     }
