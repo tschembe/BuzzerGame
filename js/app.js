@@ -884,9 +884,31 @@
           phase: state.phase,
           teams: state.teams.map((t) => ({ id: t.id, name: t.name, c: t.color, score: t.score })),
           round,
+          b: state.phase === "board" ? boardSnapshot() : null,
         },
       })
       .catch(() => {});
+  }
+
+  // جدول برای گوشی تیم‌ها، فشرده تا در سقف ۴ کیلوبایتی presence جا شود:
+  // used برای هر دسته یک رشته است؛ "." یعنی مانده، "-" یعنی هیچ تیمی، و بقیه اندیس تیم برنده (0 تا 9 و a، b)
+  // sp فقط سوال‌های ویژه‌ای است که جواب داده شده‌اند؛ ویژه‌های مانده لو نمی‌روند
+  function boardSnapshot(nameLen = 24) {
+    const snap = {
+      cats: categories.map((c) => [c.icon, c.name.slice(0, nameLen)]),
+      pts: levels,
+      used: categories.map((_, c) =>
+        levels
+          .map((_, r) => {
+            const u = state.used[`${c}-${r}`];
+            return !u ? "." : u.winner >= 0 ? u.winner.toString(36) : "-";
+          })
+          .join("")
+      ),
+      sp: Object.keys(state.used).filter(isSpecial),
+    };
+    const size = new TextEncoder().encode(JSON.stringify(snap)).length;
+    return size > 1800 && nameLen > 8 ? boardSnapshot(8) : snap;
   }
 
   function setRound(next) {

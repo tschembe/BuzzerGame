@@ -1,7 +1,8 @@
 // بازر گوشی تیم‌ها از طریق امکان «room» صفحه‌های claude.ai
 // صاحب صفحه مجری است؛ هر کس دیگری که لینک را باز کند (یا لینک با #team) صفحه‌ی بازر تیم را می‌بیند.
 // همه‌ی پیام‌ها از راه presence می‌روند، چون هر بیننده‌ای اجازه‌ی تنظیم آن را دارد:
-//   مجری: { role: "host", s: { phase, teams: [{id, name, c, score}], round: {open, qid, n, first, blocked} } }
+//   مجری: { role: "host", s: { phase, teams: [{id, name, c, score}], round: {open, qid, n, first, blocked},
+//           b: {cats: [[icon, name]], pts, used: ["..0-"], sp} } }  (b: جدول، فقط برای دیدن)
 //   تیم:  { role: "team", team, join: {name, n}, buzz: {qid, r, n} }  (r: شماره‌ی دور بازر)
 (() => {
   const TEAM_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#ec4899", "#14b8a6", "#f97316"];
@@ -177,6 +178,38 @@
       return !!(host && host.phase === "board" && round?.open && !round.first && !round.blocked?.includes(myTeam) && pressedFor !== roundKey());
     }
 
+    // «تاریخ ۴۰۰ — » برای نشان دادن سوالی که الان باز است
+    function questionLabel(qid) {
+      const b = host?.b;
+      if (!b || !qid) return "";
+      const [c, r] = qid.split("-").map(Number);
+      return b.cats[c] ? `${b.cats[c][1]} ${fa(b.pts[r])} — ` : "";
+    }
+
+    function renderBoard(b, teams) {
+      const board = $("tm-board");
+      board.style.setProperty("--levels", b.pts.length);
+      board.innerHTML = "";
+      b.cats.forEach(([icon, name], c) => {
+        const head = document.createElement("div");
+        head.className = "tm-cat";
+        head.textContent = `${icon} ${name}`;
+        board.append(head);
+        b.pts.forEach((pts, r) => {
+          const cell = document.createElement("div");
+          const mark = (b.used[c] || "")[r] || ".";
+          cell.className = "tm-cell" + (mark === "." ? "" : " used");
+          if (mark === ".") cell.textContent = fa(pts);
+          else {
+            const t = mark === "-" ? null : teams[parseInt(mark, 36)];
+            cell.textContent = (b.sp?.includes(`${c}-${r}`) ? "⭐" : "") + (t ? t.name : "—");
+            if (t) cell.style.setProperty("--team", TEAM_COLORS[t.c % TEAM_COLORS.length]);
+          }
+          board.append(cell);
+        });
+      });
+    }
+
     function render() {
       const team = host?.teams.find((t) => t.id === myTeam);
       $("tm-join").classList.toggle("hidden", !!team);
@@ -218,16 +251,26 @@
       const round = host.round || {};
       const btn = $("tm-buzz");
       const msg = $("tm-msg");
+      // وقتی سوالی باز نیست، تیم‌ها جدول را می‌بینند (فقط دیدنی، بدون انتخاب)
+      const showBoard = host.phase === "board" && !round.qid && !!host.b;
+      $("tm-board").classList.toggle("hidden", !showBoard);
+      btn.classList.toggle("hidden", showBoard);
+      if (showBoard) {
+        renderBoard(host.b, host.teams);
+        const left = host.b.used.join("").split("").filter((x) => x === ".").length;
+        msg.textContent = `مجری در حال انتخاب سوال است… ${fa(left)} سوال مانده`;
+        return;
+      }
       btn.disabled = !canBuzz();
       btn.classList.toggle("won", round.first === myTeam);
-      if (host.phase !== "board") msg.textContent = "بازی هنوز شروع نشده.";
+      if (host.phase !== "board") msg.textContent = host.phase === "end" ? "🏁 بازی تمام شد." : "بازی هنوز شروع نشده.";
       else if (round.first === myTeam) msg.textContent = "🎉 نوبت شماست! جواب بدهید.";
       else if (round.first) {
         const other = host.teams.find((t) => t.id === round.first);
         msg.textContent = `نوبت تیم «${other ? other.name : "دیگر"}» است.`;
       } else if (round.open && round.blocked?.includes(myTeam)) msg.textContent = "این سوال را جواب داده‌اید؛ نوبت تیم‌های دیگر است.";
       else if (round.open && pressedFor === roundKey()) msg.textContent = "بازر زدید… منتظر مجری.";
-      else if (round.open) msg.textContent = "سوال باز است. زود بزنید!";
+      else if (round.open) msg.textContent = `${questionLabel(round.qid)}سوال باز است. زود بزنید!`;
       else msg.textContent = "منتظر سوال بعدی…";
     }
 

@@ -609,3 +609,34 @@ body.team-mode .appbar, body.team-mode .screen, body.team-mode .modal, body.team
 .tm-buzz:disabled { filter: grayscale(.85) brightness(.55); cursor: default; }
 .tm-buzz.won { filter: none; animation: pop .4s ease; outline: 6px solid var(--gold); }
 #tm-change { align-self: center; }
+
+/* جدول فقط‌خواندنی روی گوشی تیم‌ها */
+.tm-board {
+  display: grid;
+  grid-template-columns: minmax(64px, 1.3fr) repeat(var(--levels, 5), minmax(0, 1fr));
+  gap: 5px;
+  flex: 1;
+  align-content: start;
+}
+.tm-cat, .tm-cell {
+  min-height: 46px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2px 3px;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+.tm-cat { background: var(--bg2); border: 1px solid var(--border); font-size: .72rem; font-weight: 800; }
+.tm-cell { background: var(--cell); color: var(--gold); font-weight: 800; font-size: clamp(.7rem, 3.2vw, 1rem); }
+.tm-cell.used {
+  background: var(--used);
+  color: var(--team, var(--muted));
+  font-size: .62rem;
+  font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--team, var(--border)) 50%, transparent);
+}
