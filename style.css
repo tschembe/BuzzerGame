@@ -522,3 +522,90 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
   .modal-head #m-edit-btn { order: 2; }
   .option { font-size: 1rem; padding: 10px 12px; }
 }
+
+/* ---------- بازر گوشی تیم‌ها ---------- */
+/* تا معلوم شدن نقش دستگاه (مجری یا تیم) چیزی از بازی دیده نمی‌شود */
+body.booting .screen, body.booting .appbar { visibility: hidden; }
+body.team-mode .appbar, body.team-mode .screen, body.team-mode .modal, body.team-mode .drawer, body.team-mode .drawer-backdrop { display: none !important; }
+
+.team-list li { border-inline-start: 6px solid var(--team, var(--border)); }
+.score-card { border-top: 4px solid var(--team, var(--border)); }
+.team-buttons .team-btn { border: 2px solid var(--team, transparent); }
+.phones-note { margin: 0; line-height: 1.7; }
+
+.buzz-bar {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px dashed var(--border);
+  font-weight: 600;
+}
+.buzz-bar.won {
+  border: 2px solid var(--team);
+  background: color-mix(in srgb, var(--team) 22%, transparent);
+  font-size: 1.15rem;
+  animation: pop .3s ease;
+}
+
+.qr-box { max-width: 440px; text-align: center; display: grid; gap: 10px; }
+.qr-box p { margin: 0; line-height: 1.7; }
+.qr-code { background: #fff; border-radius: 16px; padding: 12px; width: min(300px, 100%); margin: 6px auto; }
+.qr-code svg { display: block; width: 100%; height: auto; }
+.qr-link { font-size: .8rem; color: var(--muted); overflow-wrap: anywhere; user-select: all; }
+.qr-status { font-weight: 600; }
+
+.team-screen {
+  min-height: 100vh;
+  padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tm-conn { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--bg2); text-align: center; line-height: 1.7; }
+.tm-join { margin: auto; display: grid; gap: 10px; }
+.tm-join h1 { font-size: 1.6rem; }
+.tm-join p { margin: 0; }
+.tm-teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.tm-team-btn { padding: 14px; border: 2px solid var(--team); background: color-mix(in srgb, var(--team) 25%, var(--bg)); overflow-wrap: anywhere; }
+.tm-play { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.tm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--card);
+  border-top: 6px solid var(--team);
+}
+.tm-team-name { font-size: 1.3rem; font-weight: 800; color: var(--team); overflow-wrap: anywhere; }
+.tm-score-box { text-align: center; }
+.tm-score { font-size: 2.2rem; font-weight: 800; color: var(--gold); line-height: 1.2; }
+.tm-msg { margin: 0; text-align: center; font-size: 1.15rem; font-weight: 600; min-height: 1.8em; line-height: 1.6; }
+.tm-buzz {
+  font: inherit;
+  font-size: 2.6rem;
+  font-weight: 800;
+  height: 60vh;
+  width: 100%;
+  border: none;
+  border-radius: 32px;
+  color: #fff;
+  background: var(--team);
+  box-shadow: 0 10px 0 color-mix(in srgb, var(--team) 55%, #000), 0 20px 40px rgba(0, 0, 0, .4);
+  text-shadow: 0 3px 0 rgba(0, 0, 0, .3);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .06s, box-shadow .06s, filter .2s;
+}
+.tm-buzz:active:not(:disabled) { transform: translateY(8px); box-shadow: 0 2px 0 color-mix(in srgb, var(--team) 55%, #000); }
+.tm-buzz:disabled { filter: grayscale(.85) brightness(.55); cursor: default; }
+.tm-buzz.won { filter: none; animation: pop .4s ease; outline: 6px solid var(--gold); }
+#tm-change { align-self: center; }

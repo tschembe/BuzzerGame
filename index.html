@@ -10,6 +10,38 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- صفحه‌ی بازر گوشی تیم‌ها -->
+  <section id="team-screen" class="team-screen hidden">
+    <p id="tm-conn" class="tm-conn hidden"></p>
+
+    <div id="tm-join" class="card tm-join">
+      <h1>🔔 بازر تیم</h1>
+      <p id="tm-teams-label" class="muted hidden">تیم خود را انتخاب کنید:</p>
+      <div id="tm-teams" class="tm-teams"></div>
+      <form id="tm-join-form" class="team-form">
+        <input id="tm-name" type="text" maxlength="30" placeholder="یا اسم تیم جدید…" autocomplete="off">
+        <button type="submit" class="btn btn-primary">ورود</button>
+      </form>
+      <p id="tm-wait" class="muted small hidden">در حال ساختن تیم…</p>
+    </div>
+
+    <div id="tm-play" class="tm-play hidden">
+      <header class="tm-head">
+        <div>
+          <div id="tm-team-name" class="tm-team-name"></div>
+          <div id="tm-rank" class="muted small"></div>
+        </div>
+        <div class="tm-score-box">
+          <div class="muted small">امتیاز</div>
+          <div id="tm-score" class="tm-score"></div>
+        </div>
+      </header>
+      <p id="tm-msg" class="tm-msg"></p>
+      <button id="tm-buzz" type="button" class="tm-buzz">بازر</button>
+      <button id="tm-change" type="button" class="btn btn-ghost small-btn">تغییر تیم</button>
+    </div>
+  </section>
+
   <header class="appbar">
     <button id="menu-btn" class="icon-btn menu-btn" aria-label="منو" aria-controls="drawer" aria-expanded="false">☰</button>
     <span class="appbar-title">🎯 مسابقه اطلاعات عمومی</span>
@@ -95,6 +127,11 @@
       </form>
       <ul id="team-list" class="team-list"></ul>
       <fieldset class="settings">
+        <legend>📱 تیم‌ها با گوشی</legend>
+        <p id="qr-note" class="muted small phones-note">در حال بررسی…</p>
+        <button type="button" id="qr-open" class="btn small-btn hidden">نمایش QR برای اتصال تیم‌ها</button>
+      </fieldset>
+      <fieldset class="settings">
         <legend>تنظیمات بازی</legend>
         <label class="check">
           <input id="opt-timer" type="checkbox">
@@ -139,6 +176,7 @@
     <header class="topbar">
       <div class="topbar-actions">
         <span id="remaining" class="muted"></span>
+        <button id="qr-board-btn" class="btn btn-ghost hidden" title="QR برای اتصال گوشی تیم‌ها">📱 QR</button>
         <button id="end-btn" class="btn btn-ghost">پایان بازی</button>
         <span id="end-confirm" class="end-confirm hidden">
           <span>بازی تمام شود؟</span>
@@ -196,6 +234,10 @@
       </form>
 
       <div id="m-view">
+      <div id="m-buzz" class="buzz-bar hidden">
+        <span id="m-buzz-text"></span>
+        <button type="button" id="m-buzz-reset" class="btn btn-ghost small-btn">↺ بازر دوباره</button>
+      </div>
       <div id="m-special" class="special-banner hidden">
         <strong>⭐ سوال ویژه!</strong>
         <span id="m-special-rules"></span>
@@ -225,6 +267,23 @@
     </div>
   </div>
 
+  <!-- QR برای اتصال گوشی تیم‌ها -->
+  <div id="qr-overlay" class="modal hidden" role="dialog" aria-modal="true" aria-label="QR اتصال گوشی تیم‌ها">
+    <div class="modal-box qr-box">
+      <div class="modal-head">
+        <strong class="chip-gold">📱 اتصال گوشی تیم‌ها</strong>
+        <button id="qr-close" class="icon-btn" aria-label="بستن">✕</button>
+      </div>
+      <p>با دوربین گوشی اسکن کنید، اسم تیم را انتخاب کنید و بازر بزنید.</p>
+      <div id="qr-code" class="qr-code"></div>
+      <p id="qr-link" class="qr-link" dir="ltr"></p>
+      <p id="qr-status" class="qr-status"></p>
+      <p class="muted small">هر تیم باید روی گوشی با حساب claude.ai خودش وارد شده باشد و شما از منوی Share همین صفحه دعوتش کرده باشید.</p>
+    </div>
+  </div>
+
+  <script src="js/buzzer.js"></script>
+  <script src="js/vendor/qrcode.js"></script>
   <script src="js/questions.js"></script>
   <script src="js/questions-2.js"></script>
   <script src="js/prompt.js"></script>

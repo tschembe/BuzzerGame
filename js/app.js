@@ -6,7 +6,13 @@
 
   const $ = (id) => document.getElementById(id);
   const fa = (n) => Number(n).toLocaleString("fa-IR");
+  // بدون جداکننده‌ی هزارگان، برای فیلدهایی که کاربر ویرایش می‌کند
+  const faPlain = (n) => Number(n).toLocaleString("fa-IR", { useGrouping: false });
   const LETTERS = ["الف", "ب", "ج", "د"];
+  const BZ = window.Buzzer;
+  const TEAM_COLORS = BZ?.colors || ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#a855f7", "#ec4899", "#14b8a6", "#f97316"];
+  const MAX_TEAMS = 12;
+  const teamColor = (t) => TEAM_COLORS[(t.color || 0) % TEAM_COLORS.length];
 
   // سری‌های پیش‌فرض در QUESTION_SETS هستند؛ سوال‌های واردشده یک سری جدا با شناسه‌ی "imported" می‌شوند
   let questionSet = loadQuestionSet();
@@ -61,6 +67,11 @@
       if (!s || !Array.isArray(s.teams) || !s.used) return null;
       s.settings = { ...defaultSettings(), ...s.settings };
       s.special = Array.isArray(s.special) ? s.special : [];
+      // نسخه‌های قبلی به تیم‌ها شناسه و رنگ نمی‌دادند
+      s.teams.forEach((t, i) => {
+        t.id ||= newId();
+        if (typeof t.color !== "number") t.color = i % 8;
+      });
       // نسخه‌های قبلی سری انتخابی نداشتند: اگر سوالی وارد شده بود همان در حال استفاده بود
       if (!s.settings.setId || (s.settings.setId === "imported" && !questionSet))
         s.settings.setId = questionSet && !s.settings.setId ? "imported" : QUESTION_SETS[0].id;
@@ -99,6 +110,23 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {}
+    publishHost();
+  }
+
+  function newId() {
+    return Math.random().toString(36).slice(2, 10);
+  }
+
+  // رنگی که هنوز هیچ تیمی ندارد؛ اگر همه گرفته شده باشند، به ترتیب تکرار می‌شوند
+  function freeColor() {
+    for (let c = 0; c < TEAM_COLORS.length; c++) if (!state.teams.some((t) => t.color === c)) return c;
+    return state.teams.length % TEAM_COLORS.length;
+  }
+
+  function addTeam(name) {
+    const team = { id: newId(), name, color: freeColor(), score: 0 };
+    state.teams.push(team);
+    return team;
   }
 
   const isSpecial = (key) => state.special.includes(key);
@@ -145,8 +173,11 @@
     list.innerHTML = "";
     state.teams.forEach((t, i) => {
       const li = document.createElement("li");
+      li.style.setProperty("--team", teamColor(t));
       const name = document.createElement("span");
+      name.className = "team-name";
       name.textContent = `${fa(i + 1)}. ${t.name}`;
+      if (phones[t.id]) name.textContent += ` 📱${phones[t.id] > 1 ? fa(phones[t.id]) : ""}`;
       const del = document.createElement("button");
       del.className = "icon-btn";
       del.title = "حذف";
@@ -177,7 +208,8 @@
     const dup = state.teams.some((t) => t.name === name);
     $("dup-hint").classList.toggle("hidden", !dup);
     if (dup) return;
-    state.teams.push({ name, score: 0 });
+    if (state.teams.length >= MAX_TEAMS) return;
+    addTeam(name);
     input.value = "";
     input.focus();
     save();
@@ -257,6 +289,7 @@
   // متن امتیازها را از ورودی کاربر می‌خواند؛ رقم فارسی و جداکننده‌های مختلف را می‌پذیرد
   function parsePointsText(text) {
     const latin = String(text)
+      .replace(/\u066C/g, "") // جداکننده‌ی هزارگان فارسی، مثل ۱٬۰۰۰
       .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
       .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
     const parts = latin.split(/[^0-9]+/).filter(Boolean);
@@ -451,6 +484,7 @@
     state.teams.forEach((t) => {
       const d = document.createElement("div");
       d.className = "score-card" + (anyLead && t.score === max ? " leader" : "") + (t.score < 0 ? " negative" : "");
+      d.style.setProperty("--team", teamColor(t));
       const n = document.createElement("div");
       n.className = "name";
       n.textContent = t.name;
@@ -536,6 +570,7 @@
     } else {
       $("m-who").textContent = special ? "کدام تیم درست و کدام تیم غلط جواب داد؟" : "کدام تیم درست جواب داد؟";
       if (state.settings.timer) startTimer();
+      setRound({ open: true, qid: key, n: round.n + 1, first: null, blocked: [] });
     }
   }
 
@@ -547,7 +582,8 @@
     const owner = prev ? prev.winner : null;
     state.teams.forEach((t, i) => {
       const b = document.createElement("button");
-      b.className = "btn" + (owner === i ? " current" : "");
+      b.className = "btn team-btn" + (owner === i ? " current" : "");
+      b.style.setProperty("--team", teamColor(t));
       b.textContent = t.name;
       b.onclick = () => award({ winner: i, wrong: [] });
       teams.append(b);
@@ -610,6 +646,7 @@
     stopTimer();
     $("modal").classList.add("hidden");
     current = null;
+    setRound({ ...closedRound(), n: round.n });
   }
 
   $("m-close").onclick = closeModal;
@@ -706,6 +743,9 @@
       b.classList.add("wrong");
       $("m-retry").classList.remove("hidden");
       if (state.settings.timer) startTimer();
+      // بازر برای بقیه‌ی تیم‌ها دوباره باز می‌شود
+      if (round.qid)
+        setRound({ ...round, open: true, n: round.n + 1, first: null, blocked: round.first ? [...round.blocked, round.first] : round.blocked });
       return;
     }
     reveal(b);
@@ -723,6 +763,7 @@
     $("m-retry").classList.add("hidden");
     $("m-timer-row").classList.add("hidden");
     $("m-answer-box").classList.remove("hidden");
+    if (round.open) setRound({ ...round, open: false });
   }
 
   $("m-reveal").onclick = () => reveal(null);
@@ -824,6 +865,138 @@
     showScreen("setup");
   };
 
+  // ---------- بازر گوشی تیم‌ها (فقط در لینک claude.ai) ----------
+  let hostRoom = null;
+  let round = closedRound(); // بازر سوالی که الان باز است
+  let phones = {}; // تعداد گوشی‌های وصل به هر تیم
+  const handled = new Set(); // پیام‌های تیم‌ها که قبلاً حساب شده‌اند
+
+  // n شماره‌ی هر بار باز شدن بازر است تا گوشی‌ها بعد از «بازر دوباره» بتوانند دوباره بزنند
+  function closedRound() {
+    return { open: false, qid: null, n: 0, first: null, blocked: [] };
+  }
+
+  function publishHost() {
+    hostRoom
+      ?.presence({
+        role: "host",
+        s: {
+          phase: state.phase,
+          teams: state.teams.map((t) => ({ id: t.id, name: t.name, c: t.color, score: t.score })),
+          round,
+        },
+      })
+      .catch(() => {});
+  }
+
+  function setRound(next) {
+    round = next;
+    renderBuzzBar();
+    publishHost();
+  }
+
+  function renderBuzzBar() {
+    const bar = $("m-buzz");
+    const active = hostRoom && Object.keys(phones).length > 0 && current && !current.editing;
+    bar.classList.toggle("hidden", !active);
+    if (!active) return;
+    const first = state.teams.find((t) => t.id === round.first);
+    bar.classList.toggle("won", !!first);
+    bar.style.setProperty("--team", first ? teamColor(first) : "transparent");
+    $("m-buzz-text").textContent = first
+      ? `🔔 نوبت تیم «${first.name}» است`
+      : round.open
+        ? "🔔 بازر باز است؛ منتظر تیم‌ها…"
+        : "🔕 بازر بسته است";
+    $("m-buzz-reset").classList.toggle("hidden", round.open && !first);
+  }
+
+  $("m-buzz-reset").onclick = () => {
+    if (current && !current.editing) setRound({ ...round, qid: `${current.c}-${current.r}`, open: true, n: round.n + 1, first: null });
+  };
+
+  function teamJoined(rawName) {
+    const name = clean(rawName).slice(0, 30);
+    if (!name || state.teams.some((t) => t.name === name) || state.teams.length >= MAX_TEAMS) return;
+    addTeam(name);
+    recalcScores();
+    save();
+    if (state.phase === "setup") renderSetup();
+    else if (state.phase === "board") renderBoard();
+  }
+
+  function teamBuzzed(teamId, qid, n) {
+    const team = state.teams.find((t) => t.id === teamId);
+    if (!team || !round.open || round.first || qid !== round.qid || n !== round.n || round.blocked.includes(teamId)) return;
+    BZ.sound(team.color);
+    setRound({ ...round, open: false, first: teamId });
+  }
+
+  function onPeers(change) {
+    const updates = [...change.joined, ...change.updated]
+      .filter((p) => !p.isMe && p.presence?.role === "team")
+      .sort((a, b) => a.updatedAt - b.updatedAt);
+    for (const p of updates) {
+      const { join, buzz, team } = p.presence;
+      if (join && typeof join.name === "string" && !handled.has(`${p.peer}:j${join.n}`)) {
+        handled.add(`${p.peer}:j${join.n}`);
+        teamJoined(join.name);
+      }
+      if (buzz && !handled.has(`${p.peer}:b${buzz.n}`)) {
+        handled.add(`${p.peer}:b${buzz.n}`);
+        teamBuzzed(team, buzz.qid, buzz.r);
+      }
+    }
+    const next = {};
+    change.peers.forEach((p) => {
+      const id = p.presence?.role === "team" && p.presence.team;
+      if (!p.isMe && id) next[id] = (next[id] || 0) + 1;
+    });
+    if (JSON.stringify(next) !== JSON.stringify(phones)) {
+      phones = next;
+      if (state.phase === "setup") renderSetup();
+      if (state.phase === "board") renderScores();
+      renderQrStatus();
+      renderBuzzBar();
+    }
+  }
+
+  // ---------- QR برای اتصال گوشی‌ها ----------
+  const joinUrl = BZ?.pageUrl ? `${BZ.pageUrl}#team` : "";
+
+  function renderQrStatus() {
+    const n = Object.values(phones).reduce((a, b) => a + b, 0);
+    $("qr-status").textContent = n ? `📱 ${fa(n)} گوشی وصل است` : "هنوز گوشی‌ای وصل نشده";
+  }
+
+  function openQr() {
+    if (!joinUrl || typeof qrcode !== "function") return;
+    const qr = qrcode(0, "M");
+    qr.addData(joinUrl);
+    qr.make();
+    $("qr-code").innerHTML = qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
+    $("qr-link").textContent = joinUrl;
+    renderQrStatus();
+    $("qr-overlay").classList.remove("hidden");
+  }
+
+  $("qr-open").onclick = openQr;
+  $("qr-board-btn").onclick = openQr;
+  $("qr-close").onclick = () => $("qr-overlay").classList.add("hidden");
+
+  (BZ?.hostRoom || Promise.resolve(null)).then((r) => {
+    const ready = !!(r && joinUrl);
+    $("qr-open").classList.toggle("hidden", !ready);
+    $("qr-board-btn").classList.toggle("hidden", !ready);
+    $("qr-note").textContent = ready
+      ? "تیم‌ها QR را اسکن می‌کنند، اسم تیمشان را انتخاب می‌کنند و روی گوشی بازر دارند. هر تیم باید با حساب claude.ai خودش وارد شده باشد و شما از منوی Share همین صفحه دعوتش کرده باشید."
+      : "بازر گوشی فقط وقتی کار می‌کند که بازی از لینک claude.ai باز شده باشد. بدون آن هم می‌توانید تیم‌ها را دستی اضافه کنید.";
+    if (!r) return;
+    hostRoom = r;
+    r.onPeers(onPeers, () => {});
+    publishHost();
+  });
+
   // ---------- منو ----------
   function openDrawer(open) {
     $("drawer").classList.toggle("hidden", !open);
@@ -873,9 +1046,9 @@
   $("or-model").value = ai.model;
   $("or-online").checked = ai.online;
   $("gen-count").value = ai.count;
-  $("gen-points").value = ai.points.map(fa).join("، ");
+  $("gen-points").value = ai.points.map(faPlain).join("، ");
   document.querySelectorAll("[data-points]").forEach((b) => {
-    b.onclick = () => ($("gen-points").value = b.dataset.points.split(",").map(fa).join("، "));
+    b.onclick = () => ($("gen-points").value = b.dataset.points.split(",").map(faPlain).join("، "));
   });
   $("gen-topics").value = ai.topics;
   $("gen-audience").value = ai.audience;
@@ -1072,7 +1245,7 @@
       return;
     }
     ai.points = points;
-    $("gen-points").value = points.map(fa).join("، ");
+    $("gen-points").value = points.map(faPlain).join("، ");
     ai.topics = $("gen-topics").value.trim();
     ai.audience = $("gen-audience").value.trim();
     ai.title = $("gen-title").value.trim();
