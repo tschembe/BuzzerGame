@@ -230,6 +230,7 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
 .import-panel textarea:focus { outline: 2px solid var(--gold); border-color: transparent; }
 .import-panel input[type="file"] { font: inherit; font-size: .85rem; color: var(--muted); max-width: 100%; }
 
+.check .hint { display: block; line-height: 1.6; }
 .adv-rules {
   margin: -2px 0 0;
   padding: 10px 14px;

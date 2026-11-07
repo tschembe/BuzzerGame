@@ -378,6 +378,7 @@
     $("adv-rules").classList.toggle("hidden", !e.target.checked);
     save();
   };
+  $("adv-hint").textContent = `${fa(ADVANCED.specialCount)} سوال ویژه‌ی مخفی: جواب درست ${fa(ADVANCED.correctMultiplier)} برابر امتیاز، جواب غلط امتیاز منفی.`;
   ADVANCED_RULES.forEach((rule) => {
     const li = document.createElement("li");
     li.textContent = rule;
