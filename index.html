@@ -57,6 +57,13 @@
       </div>
       <label for="gen-count" class="field-label">تعداد دسته‌ها</label>
       <input id="gen-count" type="number" min="1" max="12" inputmode="numeric">
+      <label for="gen-points" class="field-label">امتیازها <span class="muted small">(هر دسته به تعداد امتیازها سوال دارد)</span></label>
+      <input id="gen-points" type="text" inputmode="numeric" placeholder="۲۰۰، ۴۰۰، ۶۰۰، ۸۰۰، ۱۰۰۰">
+      <div class="point-presets">
+        <button type="button" class="btn btn-ghost small-btn" data-points="100,200,300">۳ سطح: ۱۰۰ تا ۳۰۰</button>
+        <button type="button" class="btn btn-ghost small-btn" data-points="200,400,600,800,1000">۵ سطح: ۲۰۰ تا ۱۰۰۰</button>
+        <button type="button" class="btn btn-ghost small-btn" data-points="100,200,300,400,500,600">۶ سطح: ۱۰۰ تا ۶۰۰</button>
+      </div>
       <label for="gen-topics" class="field-label">موضوع دسته‌ها</label>
       <textarea id="gen-topics" rows="3"></textarea>
       <label for="gen-audience" class="field-label">مخاطب</label>

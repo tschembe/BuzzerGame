@@ -10,8 +10,10 @@
 
   // سری‌های پیش‌فرض در QUESTION_SETS هستند؛ سوال‌های واردشده یک سری جدا با شناسه‌ی "imported" می‌شوند
   let questionSet = loadQuestionSet();
-  let categories; // دسته‌های سری انتخاب‌شده، بعد از خواندن state مقدار می‌گیرد
-  const totalQuestions = () => categories.length * POINTS.length;
+  // دسته‌ها و امتیازهای سری انتخاب‌شده، بعد از خواندن state مقدار می‌گیرند
+  let categories;
+  let levels; // امتیاز ردیف‌ها، مثلاً [200, 400, 600, 800, 1000]؛ هر سری می‌تواند امتیازهای خودش را داشته باشد
+  const totalQuestions = () => categories.length * levels.length;
 
   function loadQuestionSet() {
     try {
@@ -47,9 +49,10 @@
     return { timer: true, secondChance: false, advanced: false, setId: QUESTION_SETS[0].id };
   }
 
-  function categoriesFor(id) {
-    if (id === "imported" && questionSet) return questionSet.categories;
-    return (QUESTION_SETS.find((x) => x.id === id) || QUESTION_SETS[0]).categories;
+  function setFor(id) {
+    if (id === "imported" && questionSet) return questionSet;
+    const set = QUESTION_SETS.find((x) => x.id === id) || QUESTION_SETS[0];
+    return { categories: set.categories, points: set.points || POINTS };
   }
 
   function load() {
@@ -69,7 +72,7 @@
     }
   }
 
-  categories = categoriesFor(state.settings.setId);
+  ({ categories, points: levels } = setFor(state.settings.setId));
 
   // سوال‌های ویرایش‌شده برای هر سری جدا ذخیره می‌شوند تا در بازی‌های بعدی هم بمانند
   let edits = {};
@@ -104,7 +107,7 @@
   function recalcScores() {
     state.teams.forEach((t) => (t.score = 0));
     for (const key in state.used) {
-      const base = POINTS[Number(key.split("-")[1])];
+      const base = levels[Number(key.split("-")[1])];
       const { winner, wrong } = state.used[key];
       const special = isSpecial(key);
       const team = (i) => state.teams[i];
@@ -117,7 +120,7 @@
     state.used = {};
     state.special = [];
     if (state.settings.advanced) {
-      const keys = categories.flatMap((_, c) => POINTS.map((_, r) => `${c}-${r}`));
+      const keys = categories.flatMap((_, c) => levels.map((_, r) => `${c}-${r}`));
       for (let i = 0; i < ADVANCED.specialCount && keys.length; i++) {
         state.special.push(keys.splice(Math.floor(Math.random() * keys.length), 1)[0]);
       }
@@ -188,7 +191,8 @@
   }
 
   // متن را می‌خواند (حتی اگر داخل ```json یا همراه توضیح باشد) و بررسی می‌کند
-  function parseSet(text) {
+  // defaultPoints برای وقتی است که متن فیلد points نداشته باشد
+  function parseSet(text, defaultPoints = POINTS) {
     const start = text.indexOf("{");
     const end = text.lastIndexOf("}");
     if (start < 0 || end < start) throw new Error("متن JSON پیدا نشد. مطمئن شوید کل خروجی را کپی کرده‌اید.");
@@ -198,11 +202,11 @@
     } catch (e) {
       throw new Error("متن JSON خراب است و خوانده نشد. از هوش مصنوعی بخواهید خروجی را به‌صورت JSON معتبر تکرار کند.");
     }
-    return validateSet(data, true);
+    return validateSet(data, true, defaultPoints);
   }
 
   // اگر strict باشد، به‌جای null خطای قابل‌فهم پرتاب می‌کند
-  function validateSet(data, strict = false) {
+  function validateSet(data, strict = false, defaultPoints = POINTS) {
     const fail = (msg) => {
       if (strict) throw new Error(msg);
       return null;
@@ -210,16 +214,21 @@
     if (!data || !Array.isArray(data.categories)) return fail("فیلد «categories» پیدا نشد.");
     if (data.categories.length < 1 || data.categories.length > 12)
       return fail("تعداد دسته‌ها باید بین ۱ تا ۱۲ باشد.");
+    let points = defaultPoints;
+    if (data.points !== undefined) {
+      points = cleanPoints(data.points);
+      if (!points) return fail("فیلد «points» باید فهرستی از ۱ تا ۱۰ عدد مثبت و متفاوت باشد.");
+    }
     const cats = [];
     for (const [ci, cat] of data.categories.entries()) {
       const where = `دسته‌ی ${fa(ci + 1)}`;
       const name = clean(cat && cat.name);
       if (!name) return fail(`${where}: نام دسته خالی است.`);
-      if (!Array.isArray(cat.questions) || cat.questions.length !== POINTS.length)
-        return fail(`دسته‌ی «${name}» باید دقیقاً ${fa(POINTS.length)} سوال داشته باشد.`);
+      if (!Array.isArray(cat.questions) || cat.questions.length !== points.length)
+        return fail(`دسته‌ی «${name}» باید دقیقاً ${fa(points.length)} سوال داشته باشد (به تعداد امتیازها).`);
       const questions = [];
       for (const [qi, item] of cat.questions.entries()) {
-        const at = `دسته‌ی «${name}»، سوال ${fa(POINTS[qi])} امتیازی`;
+        const at = `دسته‌ی «${name}»، سوال ${fa(points[qi])} امتیازی`;
         const q = clean(item && item.q);
         if (!q) return fail(`${at}: متن سوال خالی است.`);
         const options = Array.isArray(item.options) ? item.options.map(clean) : [];
@@ -233,7 +242,25 @@
       }
       cats.push({ name, icon: clean(cat.icon) || "❓", questions });
     }
-    return { title: clean(data.title), categories: cats };
+    return { title: clean(data.title), points, categories: cats };
+  }
+
+  // فهرست امتیازها را بررسی و از کم به زیاد مرتب می‌کند؛ اگر نامعتبر باشد null
+  function cleanPoints(list) {
+    if (!Array.isArray(list) || list.length < 1 || list.length > 10) return null;
+    const nums = list.map(Number);
+    if (nums.some((n) => !Number.isInteger(n) || n <= 0 || n > 100000)) return null;
+    if (new Set(nums).size !== nums.length) return null;
+    return nums.sort((a, b) => a - b);
+  }
+
+  // متن امتیازها را از ورودی کاربر می‌خواند؛ رقم فارسی و جداکننده‌های مختلف را می‌پذیرد
+  function parsePointsText(text) {
+    const latin = String(text)
+      .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d))
+      .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+    const parts = latin.split(/[^0-9]+/).filter(Boolean);
+    return cleanPoints(parts);
   }
 
   // سوال‌های واردشده را ذخیره و انتخاب می‌کند؛ با null حذفشان می‌کند و به سری اول برمی‌گردد
@@ -251,7 +278,7 @@
 
   function selectSet(id) {
     state.settings.setId = id;
-    categories = categoriesFor(id);
+    ({ categories, points: levels } = setFor(id));
     resetGame();
     save();
   }
@@ -259,9 +286,14 @@
   function renderSetInfo() {
     const list = $("set-list");
     list.innerHTML = "";
-    const options = QUESTION_SETS.map((x) => ({ id: x.id, title: x.title, cats: x.categories }));
+    const options = QUESTION_SETS.map((x) => ({ id: x.id, title: x.title, cats: x.categories, points: x.points || POINTS }));
     if (questionSet)
-      options.push({ id: "imported", title: `واردشده${questionSet.title ? `: «${questionSet.title}»` : ""}`, cats: questionSet.categories });
+      options.push({
+        id: "imported",
+        title: `واردشده${questionSet.title ? `: «${questionSet.title}»` : ""}`,
+        cats: questionSet.categories,
+        points: questionSet.points,
+      });
     options.forEach((o) => {
       const label = document.createElement("label");
       label.className = "check set-option";
@@ -275,7 +307,7 @@
       text.textContent = o.title;
       const count = document.createElement("span");
       count.className = "muted small";
-      count.textContent = ` (${fa(o.cats.length)} دسته، ${fa(o.cats.length * POINTS.length)} سوال)`;
+      count.textContent = ` (${fa(o.cats.length)} دسته، ${fa(o.cats.length * o.points.length)} سوال، امتیاز ${fa(o.points[0])} تا ${fa(o.points[o.points.length - 1])})`;
       text.append(count);
       label.append(input, text);
       list.append(label);
@@ -382,7 +414,7 @@
       const name = w >= 0 && state.teams[w] ? state.teams[w].name : "—";
       btn.textContent = isSpecial(key) ? `⭐ ${name}` : name;
     } else {
-      btn.textContent = fa(POINTS[r]);
+      btn.textContent = fa(levels[r]);
     }
     btn.onclick = () => openQuestion(c, r);
     return btn;
@@ -392,16 +424,17 @@
     const board = $("board");
     board.innerHTML = "";
     board.classList.toggle("rotated", narrow.matches);
+    board.style.setProperty("--levels", levels.length);
 
     if (narrow.matches) {
       categories.forEach((cat, c) => {
         board.append(catHead(cat));
-        POINTS.forEach((_, r) => board.append(cell(c, r)));
+        levels.forEach((_, r) => board.append(cell(c, r)));
       });
     } else {
       board.style.setProperty("--cols", categories.length);
       categories.forEach((cat) => board.append(catHead(cat)));
-      POINTS.forEach((_, r) => categories.forEach((_, c) => board.append(cell(c, r))));
+      levels.forEach((_, r) => categories.forEach((_, c) => board.append(cell(c, r))));
     }
 
     renderScores();
@@ -450,7 +483,7 @@
     showEditForm(false);
     $("m-cat").textContent = `${cat.icon} ${cat.name}`;
     const special = isSpecial(key);
-    const base = POINTS[r];
+    const base = levels[r];
     $("m-points").textContent = special ? `${fa(base)} × ${fa(ADVANCED.correctMultiplier)}` : `${fa(base)} امتیاز`;
     $("m-special").classList.toggle("hidden", !special);
     $("m-special-rules").textContent = `جواب درست: ${fa(base * ADVANCED.correctMultiplier)}+ امتیاز · جواب غلط: ${fa(base * ADVANCED.wrongPenalty)}− امتیاز`;
@@ -813,6 +846,7 @@
     online: false,
     engine: "openrouter",
     count: 8,
+    points: POINTS,
     topics: DEFAULT_TOPICS,
     audience: "بزرگسالان فارسی‌زبان ایرانی با معلومات عمومی متوسط",
     title: "مجموعه‌ی جدید",
@@ -838,6 +872,10 @@
   $("or-model").value = ai.model;
   $("or-online").checked = ai.online;
   $("gen-count").value = ai.count;
+  $("gen-points").value = ai.points.map(fa).join("، ");
+  document.querySelectorAll("[data-points]").forEach((b) => {
+    b.onclick = () => ($("gen-points").value = b.dataset.points.split(",").map(fa).join("، "));
+  });
   $("gen-topics").value = ai.topics;
   $("gen-audience").value = ai.audience;
   $("gen-title").value = ai.title;
@@ -887,6 +925,7 @@
   function buildPrompt() {
     const settings = [
       `- **تعداد دسته‌ها:** ${fa(ai.count)}`,
+      `- **امتیازها:** ${ai.points.map(fa).join("، ")} (هر دسته دقیقاً ${fa(ai.points.length)} سوال؛ در JSON بنویس "points": ${JSON.stringify(ai.points)})`,
       `- **موضوع دسته‌ها:** ${ai.topics || "به انتخاب خودت"}`,
       `- **مخاطب:** ${ai.audience || "بزرگسالان فارسی‌زبان"}`,
       `- **عنوان مجموعه:** ${ai.title || "مجموعه‌ی جدید"}`,
@@ -1012,7 +1051,7 @@
     $("gen-result").classList.toggle("hidden", !generated);
     if (!generated) return;
     const { set } = generated;
-    const total = set.categories.length * POINTS.length;
+    const total = set.categories.length * set.points.length;
     $("gen-summary").textContent = `✓ «${set.title || "مجموعه‌ی جدید"}»: ${fa(set.categories.length)} دسته، ${fa(total)} سوال`;
     const ul = $("gen-cats");
     ul.innerHTML = "";
@@ -1026,6 +1065,13 @@
 
   $("gen-go").onclick = async () => {
     ai.count = Math.min(12, Math.max(1, parseInt($("gen-count").value, 10) || 8));
+    const points = parsePointsText($("gen-points").value);
+    if (!points) {
+      showStatus("gen-status", "امتیازها را درست بنویسید: ۱ تا ۱۰ عدد مثبت و متفاوت، مثلاً «۱۰۰، ۲۰۰، ۳۰۰».", "error");
+      return;
+    }
+    ai.points = points;
+    $("gen-points").value = points.map(fa).join("، ");
     ai.topics = $("gen-topics").value.trim();
     ai.audience = $("gen-audience").value.trim();
     ai.title = $("gen-title").value.trim();
@@ -1058,7 +1104,7 @@
       if (res.truncated) throw new Error("خروجی نیمه‌کاره ماند (خیلی طولانی بود). تعداد دسته‌ها را کمتر کنید و دوباره امتحان کنید.");
       let set;
       try {
-        set = parseSet(text);
+        set = parseSet(text, ai.points);
       } catch (e) {
         throw new Error(`خروجی هوش مصنوعی ایراد داشت: ${e.message} دوباره امتحان کنید.`);
       }

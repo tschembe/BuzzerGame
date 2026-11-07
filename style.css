@@ -97,6 +97,8 @@ body::before {
 .key-row { display: flex; gap: 8px; }
 .key-row input { flex: 1; }
 .engine { display: grid; gap: 6px; }
+.point-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.point-presets .btn { padding: 5px 10px; font-size: .82rem; }
 .engine input { accent-color: var(--gold); }
 .ok { color: var(--ok); }
 .gen-status { line-height: 1.7; }
@@ -501,7 +503,7 @@ h1 { margin: 0 0 8px; font-size: 1.8rem; }
 
 /* جدول چرخانده‌شده برای گوشی: ستون اول نام دسته، بعد پنج امتیاز */
 .board.rotated {
-  grid-template-columns: minmax(72px, 1.3fr) repeat(5, minmax(0, 1fr));
+  grid-template-columns: minmax(72px, 1.3fr) repeat(var(--levels, 5), minmax(0, 1fr));
   min-width: 0;
   gap: 6px;
 }
