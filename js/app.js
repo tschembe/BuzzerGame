@@ -22,7 +22,10 @@
   // دسته‌ها و امتیازهای سری انتخاب‌شده، بعد از خواندن state مقدار می‌گیرند
   let categories;
   let levels; // امتیاز ردیف‌ها، مثلاً [200, 400, 600, 800, 1000]؛ هر سری می‌تواند امتیازهای خودش را داشته باشد
-  const totalQuestions = () => categories.length * levels.length;
+  const gridTotal = () => categories.length * levels.length;
+  // در حالت یک‌امتیازی فقط سوال‌های داخل state.order پرسیده می‌شوند
+  const onePoint = () => state.settings.onePoint;
+  const totalQuestions = () => (onePoint() ? state.order.length : gridTotal());
 
   function loadQuestionSet() {
     try {
@@ -46,16 +49,18 @@
 
   // state.used: کلید "دسته-ردیف" ← { winner: اندیس تیم درست یا -1, wrong: اندیس تیم‌های غلط }
   // state.special: کلید سوال‌های ویژه‌ی بازی پیشرفته
+  // state.order: در حالت یک‌امتیازی، کلید سوال‌ها به ترتیب تصادفی پرسیده شدن
   let state = load() || freshState();
   let current = null; // { c, r, attempts, editing }
   let timer = { left: 0, id: null, running: false };
 
   function freshState() {
-    return { phase: "setup", teams: [], used: {}, special: [], settings: defaultSettings() };
+    return { phase: "setup", teams: [], used: {}, special: [], order: [], settings: defaultSettings() };
   }
 
   function defaultSettings() {
-    return { timer: true, secondChance: false, advanced: false, setId: QUESTION_SETS[0].id };
+    // onePointCount: تعداد سوال‌های حالت یک‌امتیازی؛ ۰ یعنی همه‌ی سوال‌های سری
+    return { timer: true, secondChance: false, advanced: false, onePoint: false, onePointCount: 0, setId: QUESTION_SETS[0].id };
   }
 
   function setFor(id) {
@@ -70,6 +75,7 @@
       if (!s || !Array.isArray(s.teams) || !s.used) return null;
       s.settings = { ...defaultSettings(), ...s.settings };
       s.special = Array.isArray(s.special) ? s.special : [];
+      s.order = Array.isArray(s.order) ? s.order : [];
       // نسخه‌های قبلی به تیم‌ها شناسه و رنگ نمی‌دادند
       s.teams.forEach((t, i) => {
         t.id ||= newId();
@@ -138,7 +144,7 @@
   function recalcScores() {
     state.teams.forEach((t) => (t.score = 0));
     for (const key in state.used) {
-      const base = levels[Number(key.split("-")[1])];
+      const base = onePoint() ? 1 : levels[Number(key.split("-")[1])];
       const { winner, wrong } = state.used[key];
       const special = isSpecial(key);
       const team = (i) => state.teams[i];
@@ -150,8 +156,17 @@
   function resetGame() {
     state.used = {};
     state.special = [];
-    if (state.settings.advanced) {
-      const keys = categories.flatMap((_, c) => levels.map((_, r) => `${c}-${r}`));
+    state.order = [];
+    const keys = categories.flatMap((_, c) => levels.map((_, r) => `${c}-${r}`));
+    if (onePoint()) {
+      // همه‌ی سوال‌ها از همه‌ی دسته‌ها و سطح‌ها قاطی و به‌هم ریخته می‌شوند
+      for (let i = keys.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [keys[i], keys[j]] = [keys[j], keys[i]];
+      }
+      const n = state.settings.onePointCount;
+      state.order = n > 0 ? keys.slice(0, n) : keys;
+    } else if (state.settings.advanced) {
       for (let i = 0; i < ADVANCED.specialCount && keys.length; i++) {
         state.special.push(keys.splice(Math.floor(Math.random() * keys.length), 1)[0]);
       }
@@ -197,7 +212,8 @@
     $("opt-timer").checked = state.settings.timer;
     $("opt-second").checked = state.settings.secondChance;
     $("opt-advanced").checked = state.settings.advanced;
-    $("adv-rules").classList.toggle("hidden", !state.settings.advanced);
+    $("adv-rules").classList.toggle("hidden", !state.settings.advanced || onePoint());
+    renderOnePointOptions();
     const enough = state.teams.length >= 2;
     $("start-btn").disabled = !enough;
     $("setup-hint").classList.toggle("hidden", enough);
@@ -409,6 +425,39 @@
     save();
   };
 
+  // در حالت یک‌امتیازی گزینه‌ای نمایش داده نمی‌شود و همه‌ی سوال‌ها یک امتیازند،
+  // پس فرصت دوم (رد شدن گزینه) و بازی پیشرفته (سوال ویژه) معنی ندارند
+  function renderOnePointOptions() {
+    const on = onePoint();
+    $("opt-onepoint").checked = on;
+    $("onepoint-box").classList.toggle("hidden", !on);
+    ["opt-second", "opt-advanced"].forEach((id) => {
+      $(id).disabled = on;
+      $(id).closest("label").classList.toggle("disabled", on);
+    });
+    $("adv-rules").classList.toggle("hidden", !state.settings.advanced || on);
+    const total = gridTotal();
+    const count = $("onepoint-count");
+    count.max = total;
+    count.placeholder = `همه (${fa(total)})`;
+    const n = state.settings.onePointCount;
+    if (document.activeElement !== count) count.value = n > 0 ? faPlain(Math.min(n, total)) : "";
+  }
+
+  $("opt-onepoint").onchange = (e) => {
+    state.settings.onePoint = e.target.checked;
+    renderOnePointOptions();
+    save();
+  };
+
+  $("onepoint-count").oninput = (e) => {
+    const digits = e.target.value.replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+    const n = parseInt(digits, 10);
+    state.settings.onePointCount = n > 0 ? Math.min(n, gridTotal()) : 0;
+    save();
+  };
+  $("onepoint-count").onblur = renderOnePointOptions;
+
   $("opt-advanced").onchange = (e) => {
     state.settings.advanced = e.target.checked;
     $("adv-rules").classList.toggle("hidden", !e.target.checked);
@@ -458,9 +507,73 @@
     return btn;
   }
 
+  // حالت یک‌امتیازی: به‌جای جدول، دکمه‌ی سوال بعدی و فهرست سوال‌های پرسیده‌شده
+  const nextKey = () => state.order.find((k) => !(k in state.used));
+  const openKey = (key) => openQuestion(...key.split("-").map(Number));
+
+  function renderOnePointBoard(board) {
+    board.className = "board onepoint";
+    const done = Object.keys(state.used).length;
+    const total = totalQuestions();
+    const panel = document.createElement("div");
+    panel.className = "onepoint-panel";
+    const progress = document.createElement("div");
+    progress.className = "onepoint-progress";
+    progress.textContent = done < total ? `سوال ${fa(done + 1)} از ${fa(total)}` : "همه‌ی سوال‌ها پرسیده شد";
+    const hint = document.createElement("p");
+    hint.className = "muted small";
+    hint.textContent = "سوال‌ها تصادفی از همه‌ی دسته‌ها می‌آیند و هر جواب درست ۱ امتیاز دارد.";
+    panel.append(progress, hint);
+    const key = nextKey();
+    if (key) {
+      const next = document.createElement("button");
+      next.className = "btn btn-primary btn-big";
+      next.textContent = done ? "سوال بعدی ▶" : "سوال اول ▶";
+      next.onclick = () => openKey(key);
+      panel.append(next);
+    } else {
+      const end = document.createElement("button");
+      end.className = "btn btn-primary btn-big";
+      end.textContent = "نمایش نتیجه 🏆";
+      end.onclick = () => showScreen("end");
+      panel.append(end);
+    }
+    board.append(panel);
+
+    // سوال‌های پرسیده‌شده؛ با کلیک می‌شود نتیجه را اصلاح کرد
+    const asked = state.order.filter((k) => k in state.used);
+    if (!asked.length) return;
+    const title = document.createElement("p");
+    title.className = "muted small onepoint-history-title";
+    title.textContent = "سوال‌های پرسیده‌شده (برای اصلاح امتیاز کلیک کنید):";
+    const list = document.createElement("div");
+    list.className = "onepoint-history";
+    asked.forEach((k) => {
+      const b = document.createElement("button");
+      b.className = "cell used";
+      const w = state.used[k].winner;
+      const team = w >= 0 ? state.teams[w] : null;
+      const name = team ? team.name : "—";
+      b.textContent = `${fa(state.order.indexOf(k) + 1)}. ${shortName(name)}`;
+      b.title = `${categories[k.split("-")[0]]?.name || ""} — ${name}`;
+      if (team) b.style.setProperty("--team", teamColor(team));
+      b.onclick = () => openKey(k);
+      list.append(b);
+    });
+    board.append(title, list);
+  }
+
   function renderBoard() {
     const board = $("board");
     board.innerHTML = "";
+    if (onePoint()) {
+      renderOnePointBoard(board);
+      renderScores();
+      const left = totalQuestions() - Object.keys(state.used).length;
+      $("remaining").textContent = `${fa(left)} سوال باقی مانده`;
+      return;
+    }
+    board.className = "board";
     board.classList.toggle("rotated", narrow.matches);
     board.style.setProperty("--levels", levels.length);
 
@@ -520,10 +633,15 @@
     const cat = categories[c];
     const item = getQuestion(c, r);
     showEditForm(false);
-    $("m-cat").textContent = `${cat.icon} ${cat.name}`;
+    const one = onePoint();
+    $("m-cat").textContent = `${cat.icon} ${cat.name}` + (one ? ` — سوال ${fa(state.order.indexOf(key) + 1)} از ${fa(totalQuestions())}` : "");
     const special = isSpecial(key);
     const base = levels[r];
-    $("m-points").textContent = special ? `${fa(base)} × ${fa(ADVANCED.correctMultiplier)}` : `${fa(base)} امتیاز`;
+    $("m-points").textContent = one
+      ? "۱ امتیاز"
+      : special
+        ? `${fa(base)} × ${fa(ADVANCED.correctMultiplier)}`
+        : `${fa(base)} امتیاز`;
     $("m-special").classList.toggle("hidden", !special);
     $("m-special-rules").textContent = `جواب درست: ${fa(base * ADVANCED.correctMultiplier)}+ امتیاز · جواب غلط: ${fa(base * ADVANCED.wrongPenalty)}− امتیاز`;
     $("m-question").textContent = item.q;
@@ -539,6 +657,8 @@
     }
     const opts = $("m-options");
     opts.innerHTML = "";
+    // در حالت یک‌امتیازی گزینه‌ها نشان داده نمی‌شوند؛ هر کس زودتر درست جواب بدهد امتیاز می‌گیرد
+    opts.classList.toggle("hidden", one);
     order.forEach((oi, pos) => {
       const b = document.createElement("button");
       b.className = "option";
@@ -888,7 +1008,8 @@
           phase: state.phase,
           teams: state.teams.map((t) => ({ id: t.id, name: t.name, c: t.color, score: t.score })),
           round,
-          b: state.phase === "board" ? boardSnapshot() : null,
+          // در حالت یک‌امتیازی جدولی برای نشان دادن به گوشی‌ها نیست
+          b: state.phase === "board" && !onePoint() ? boardSnapshot() : null,
         },
       })
       .catch(() => {});
