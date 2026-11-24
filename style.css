@@ -646,7 +646,7 @@ body.team-mode .appbar, body.team-mode .screen, body.team-mode .modal, body.team
 .check.disabled input { cursor: not-allowed; }
 .onepoint-box { margin: 4px 0 0; padding-inline-start: 30px; }
 .onepoint-box .field-label { display: block; margin-bottom: 6px; }
-.onepoint-box input {
+#onepoint-count {
   font: inherit;
   width: 100%;
   max-width: 180px;
@@ -656,7 +656,7 @@ body.team-mode .appbar, body.team-mode .screen, body.team-mode .modal, body.team
   background: var(--bg);
   color: var(--text);
 }
-.onepoint-box input:focus { outline: 2px solid var(--gold); border-color: transparent; }
+#onepoint-count:focus { outline: 2px solid var(--gold); border-color: transparent; }
 .board.onepoint { display: block; min-width: 0; }
 .onepoint-panel {
   max-width: 520px;

@@ -60,7 +60,8 @@
 
   function defaultSettings() {
     // onePointCount: تعداد سوال‌های حالت یک‌امتیازی؛ ۰ یعنی همه‌ی سوال‌های سری
-    return { timer: true, secondChance: false, advanced: false, onePoint: false, onePointCount: 0, setId: QUESTION_SETS[0].id };
+    // options: گزینه‌های سوال نشان داده شوند یا فقط متن سوال (در همه‌ی حالت‌های بازی)
+    return { timer: true, secondChance: false, advanced: false, options: true, onePoint: false, onePointCount: 0, setId: QUESTION_SETS[0].id };
   }
 
   function setFor(id) {
@@ -425,16 +426,19 @@
     save();
   };
 
-  // در حالت یک‌امتیازی گزینه‌ای نمایش داده نمی‌شود و همه‌ی سوال‌ها یک امتیازند،
-  // پس فرصت دوم (رد شدن گزینه) و بازی پیشرفته (سوال ویژه) معنی ندارند
+  // در حالت یک‌امتیازی همه‌ی سوال‌ها یک امتیازند، پس بازی پیشرفته (سوال ویژه) معنی ندارد؛
+  // فرصت دوم (رد شدن گزینه‌ی غلط) هم فقط وقتی گزینه‌ها نمایش داده شوند معنی دارد،
+  // و بدون آن، اگر کسی غلط گفت «بازر دوباره» زده می‌شود
   function renderOnePointOptions() {
     const on = onePoint();
     $("opt-onepoint").checked = on;
+    $("opt-options").checked = state.settings.options;
     $("onepoint-box").classList.toggle("hidden", !on);
-    ["opt-second", "opt-advanced"].forEach((id) => {
-      $(id).disabled = on;
-      $(id).closest("label").classList.toggle("disabled", on);
-    });
+    const off = { "opt-second": !state.settings.options, "opt-advanced": on };
+    for (const id in off) {
+      $(id).disabled = off[id];
+      $(id).closest("label").classList.toggle("disabled", off[id]);
+    }
     $("adv-rules").classList.toggle("hidden", !state.settings.advanced || on);
     const total = gridTotal();
     const count = $("onepoint-count");
@@ -446,6 +450,12 @@
 
   $("opt-onepoint").onchange = (e) => {
     state.settings.onePoint = e.target.checked;
+    renderOnePointOptions();
+    save();
+  };
+
+  $("opt-options").onchange = (e) => {
+    state.settings.options = e.target.checked;
     renderOnePointOptions();
     save();
   };
@@ -657,8 +667,8 @@
     }
     const opts = $("m-options");
     opts.innerHTML = "";
-    // در حالت یک‌امتیازی گزینه‌ها نشان داده نمی‌شوند؛ هر کس زودتر درست جواب بدهد امتیاز می‌گیرد
-    opts.classList.toggle("hidden", one);
+    // بدون گزینه، فقط سوال خوانده می‌شود و مجری بعد از «نمایش جواب» تیم درست را انتخاب می‌کند
+    opts.classList.toggle("hidden", !state.settings.options);
     order.forEach((oi, pos) => {
       const b = document.createElement("button");
       b.className = "option";
