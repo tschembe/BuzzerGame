@@ -640,3 +640,38 @@ body.team-mode .appbar, body.team-mode .screen, body.team-mode .modal, body.team
   font-weight: 600;
   border: 1px solid color-mix(in srgb, var(--team, var(--border)) 50%, transparent);
 }
+
+/* حالت سوال‌های یک‌امتیازی */
+.check.disabled { opacity: .45; cursor: not-allowed; }
+.check.disabled input { cursor: not-allowed; }
+.onepoint-box { margin: 4px 0 0; padding-inline-start: 30px; }
+.onepoint-box .field-label { display: block; margin-bottom: 6px; }
+.onepoint-box input {
+  font: inherit;
+  width: 100%;
+  max-width: 180px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.onepoint-box input:focus { outline: 2px solid var(--gold); border-color: transparent; }
+.board.onepoint { display: block; min-width: 0; }
+.onepoint-panel {
+  max-width: 520px;
+  margin: 12px auto;
+  text-align: center;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 20px;
+}
+.onepoint-progress { font-size: 1.8rem; font-weight: 800; color: var(--gold); }
+.onepoint-history-title { text-align: center; margin-top: 18px; }
+.onepoint-history {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+.onepoint-history .cell { min-height: 48px; font-size: 1rem; border-inline-start: 4px solid var(--team, transparent); }
